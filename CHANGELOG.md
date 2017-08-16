@@ -1,4 +1,7 @@
 ## 0.1.1 (Unreleased)
+
+* add content type for ADFS FederationMetadata.xml [GH-4]
+
 ## 0.1.0 (June 20, 2017)
 
 NOTES:
