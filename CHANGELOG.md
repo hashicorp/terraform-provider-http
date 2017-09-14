@@ -1,3 +1,4 @@
+## 1.0.1 (Unreleased)
 ## 1.0.0 (September 14, 2017)
 
 * add content type for ADFS FederationMetadata.xml ([#4](https://github.com/terraform-providers/terraform-provider-http/issues/4))
