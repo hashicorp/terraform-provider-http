@@ -1,4 +1,4 @@
-## 0.1.1 (Unreleased)
+## 1.0.0 (Unreleased)
 
 * add content type for ADFS FederationMetadata.xml [GH-4]
 
