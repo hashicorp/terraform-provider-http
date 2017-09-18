@@ -3,8 +3,10 @@ package http
 import (
 	"fmt"
 	"io/ioutil"
+	"mime"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform/helper/schema"
@@ -89,6 +91,12 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 // and generally unprintable characters
 // See https://github.com/hashicorp/terraform/pull/3858#issuecomment-156856738
 func isContentTypeAllowed(contentType string) bool {
+
+	parsedType, params, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return false
+	}
+
 	allowedContentTypes := []*regexp.Regexp{
 		regexp.MustCompile("^text/.+"),
 		regexp.MustCompile("^application/json$"),
@@ -96,8 +104,9 @@ func isContentTypeAllowed(contentType string) bool {
 	}
 
 	for _, r := range allowedContentTypes {
-		if r.MatchString(contentType) {
-			return true
+		if r.MatchString(parsedType) {
+			charset := strings.ToLower(params["charset"])
+			return charset == "" || charset == "utf-8"
 		}
 	}
 

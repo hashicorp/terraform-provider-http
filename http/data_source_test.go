@@ -119,6 +119,74 @@ func TestDataSource_withHeaders200(t *testing.T) {
 	})
 }
 
+const testDataSourceConfig_utf8 = `
+data "http" "http_test" {
+  url = "%s/utf-8/meta_%d.txt"
+}
+
+output "body" {
+  value = "${data.http.http_test.body}"
+}
+`
+
+func TestDataSource_utf8(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		Providers: testProviders,
+		Steps: []resource.TestStep{
+			resource.TestStep{
+				Config: fmt.Sprintf(testDataSourceConfig_utf8, testHttpMock.server.URL, 200),
+				Check: func(s *terraform.State) error {
+					_, ok := s.RootModule().Resources["data.http.http_test"]
+					if !ok {
+						return fmt.Errorf("missing data resource")
+					}
+
+					outputs := s.RootModule().Outputs
+
+					if outputs["body"].Value != "1.0.0" {
+						return fmt.Errorf(
+							`'body' output is %s; want '1.0.0'`,
+							outputs["body"].Value,
+						)
+					}
+
+					return nil
+				},
+			},
+		},
+	})
+}
+
+const testDataSourceConfig_utf16 = `
+data "http" "http_test" {
+  url = "%s/utf-16/meta_%d.txt"
+}
+
+output "body" {
+  value = "${data.http.http_test.body}"
+}
+`
+
+func TestDataSource_utf16(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		Providers: testProviders,
+		Steps: []resource.TestStep{
+			resource.TestStep{
+				Config:      fmt.Sprintf(testDataSourceConfig_utf16, testHttpMock.server.URL, 200),
+				ExpectError: regexp.MustCompile("Content-Type is not a text type. Got: application/json; charset=UTF-16"),
+			},
+		},
+	})
+}
+
 const testDataSourceConfig_error = `
 data "http" "http_test" {
 
@@ -140,6 +208,8 @@ func TestDataSource_compileError(t *testing.T) {
 func setUpMockHttpServer() *TestHttpMock {
 	Server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+			w.Header().Set("Content-Type", "text/plain")
 			if r.URL.Path == "/meta_200.txt" {
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte("1.0.0"))
@@ -150,13 +220,19 @@ func setUpMockHttpServer() *TestHttpMock {
 				} else {
 					w.WriteHeader(http.StatusForbidden)
 				}
+			} else if r.URL.Path == "/utf-8/meta_200.txt" {
+				w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("1.0.0"))
+			} else if r.URL.Path == "/utf-16/meta_200.txt" {
+				w.Header().Set("Content-Type", "application/json; charset=UTF-16")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("\"1.0.0\""))
 			} else if r.URL.Path == "/meta_404.txt" {
 				w.WriteHeader(http.StatusNotFound)
 			} else {
 				w.WriteHeader(http.StatusNotFound)
 			}
-
-			w.Header().Add("Content-Type", "text/plain")
 		}),
 	)
 
