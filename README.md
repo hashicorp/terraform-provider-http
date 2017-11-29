@@ -32,7 +32,7 @@ $ make build
 
 Using the provider
 ----------------------
-## Fill in for each provider
+see <https://www.terraform.io/docs/providers/http/data_source.html>
 
 Developing the Provider
 ---------------------------
