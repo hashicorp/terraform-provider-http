@@ -1,6 +1,6 @@
-## 1.0.1 (Unreleased)
+## 1.0.1 (January 03, 2018)
 
-* Allow `charset` argument on `Content-Type` [GH-5]
+* Allow `charset` argument on `Content-Type` ([#5](https://github.com/terraform-providers/terraform-provider-http/issues/5))
 
 ## 1.0.0 (September 14, 2017)
 
