@@ -1,11 +1,13 @@
 ## 1.1.0 (Unreleased)
+* Allow headers to be redacted in Terraform state
+
 ## 1.0.1 (January 03, 2018)
 
 * Allow `charset` argument on `Content-Type` ([#5](https://github.com/terraform-providers/terraform-provider-http/issues/5))
 
 ## 1.0.0 (September 14, 2017)
 
-* add content type for ADFS FederationMetadata.xml ([#4](https://github.com/terraform-providers/terraform-provider-http/issues/4))
+* Add content type for ADFS FederationMetadata.xml ([#4](https://github.com/terraform-providers/terraform-provider-http/issues/4))
 
 ## 0.1.0 (June 20, 2017)
 
