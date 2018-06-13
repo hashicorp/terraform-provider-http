@@ -44,6 +44,9 @@ The following arguments are supported:
 * `request_headers` - (Optional) A map of strings representing additional HTTP
   headers to include in the request.
 
+* `request_headers_redact` - (Optional) A list of header names to avoid writing
+  the values of into Terraform state (eg; `["Authorization"]`).
+
 ## Attributes Reference
 
 The following attributes are exported:

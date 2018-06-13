@@ -33,6 +33,14 @@ func dataSource() *schema.Resource {
 				},
 			},
 
+			"request_headers_redact": &schema.Schema{
+				Type:     schema.TypeList,
+				Optional: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+			},
+
 			"body": &schema.Schema{
 				Type:     schema.TypeString,
 				Computed: true,
@@ -56,9 +64,16 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error creating request: %s", err)
 	}
 
+	redact := d.Get("request_headers_redact").([]interface{})
 	for name, value := range headers {
 		req.Header.Set(name, value.(string))
+		for _, r := range redact {
+			if name == r {
+				headers[name] = "..."
+			}
+		}
 	}
+	d.Set("request_headers", headers)
 
 	resp, err := client.Do(req)
 	if err != nil {
