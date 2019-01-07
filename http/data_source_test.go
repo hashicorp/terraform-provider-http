@@ -33,7 +33,7 @@ func TestDataSource_http200(t *testing.T) {
 	resource.UnitTest(t, resource.TestCase{
 		Providers: testProviders,
 		Steps: []resource.TestStep{
-			resource.TestStep{
+			{
 				Config: fmt.Sprintf(testDataSourceConfig_basic, testHttpMock.server.URL, 200),
 				Check: func(s *terraform.State) error {
 					_, ok := s.RootModule().Resources["data.http.http_test"]
@@ -65,7 +65,7 @@ func TestDataSource_http404(t *testing.T) {
 	resource.UnitTest(t, resource.TestCase{
 		Providers: testProviders,
 		Steps: []resource.TestStep{
-			resource.TestStep{
+			{
 				Config:      fmt.Sprintf(testDataSourceConfig_basic, testHttpMock.server.URL, 404),
 				ExpectError: regexp.MustCompile("HTTP request error. Response code: 404"),
 			},
@@ -95,7 +95,7 @@ func TestDataSource_withHeaders200(t *testing.T) {
 	resource.UnitTest(t, resource.TestCase{
 		Providers: testProviders,
 		Steps: []resource.TestStep{
-			resource.TestStep{
+			{
 				Config: fmt.Sprintf(testDataSourceConfig_withHeaders, testHttpMock.server.URL, 200),
 				Check: func(s *terraform.State) error {
 					_, ok := s.RootModule().Resources["data.http.http_test"]
@@ -137,7 +137,7 @@ func TestDataSource_utf8(t *testing.T) {
 	resource.UnitTest(t, resource.TestCase{
 		Providers: testProviders,
 		Steps: []resource.TestStep{
-			resource.TestStep{
+			{
 				Config: fmt.Sprintf(testDataSourceConfig_utf8, testHttpMock.server.URL, 200),
 				Check: func(s *terraform.State) error {
 					_, ok := s.RootModule().Resources["data.http.http_test"]
@@ -179,7 +179,7 @@ func TestDataSource_utf16(t *testing.T) {
 	resource.UnitTest(t, resource.TestCase{
 		Providers: testProviders,
 		Steps: []resource.TestStep{
-			resource.TestStep{
+			{
 				Config:      fmt.Sprintf(testDataSourceConfig_utf16, testHttpMock.server.URL, 200),
 				ExpectError: regexp.MustCompile("Content-Type is not a text type. Got: application/json; charset=UTF-16"),
 			},
@@ -197,7 +197,7 @@ func TestDataSource_compileError(t *testing.T) {
 	resource.UnitTest(t, resource.TestCase{
 		Providers: testProviders,
 		Steps: []resource.TestStep{
-			resource.TestStep{
+			{
 				Config:      testDataSourceConfig_error,
 				ExpectError: regexp.MustCompile("required field is not set"),
 			},
