@@ -17,7 +17,7 @@ func dataSource() *schema.Resource {
 		Read: dataSourceRead,
 
 		Schema: map[string]*schema.Schema{
-			"url": &schema.Schema{
+			"url": {
 				Type:     schema.TypeString,
 				Required: true,
 				Elem: &schema.Schema{
@@ -25,7 +25,7 @@ func dataSource() *schema.Resource {
 				},
 			},
 
-			"request_headers": &schema.Schema{
+			"request_headers": {
 				Type:     schema.TypeMap,
 				Optional: true,
 				Elem: &schema.Schema{
@@ -33,7 +33,7 @@ func dataSource() *schema.Resource {
 				},
 			},
 
-			"body": &schema.Schema{
+			"body": {
 				Type:     schema.TypeString,
 				Computed: true,
 				Elem: &schema.Schema{
