@@ -207,6 +207,81 @@ func TestDataSource_utf16(t *testing.T) {
 	})
 }
 
+const testDataSourceConfig_xml = `
+data "http" "http_test" {
+  url = "%s/xml"
+  request_headers = {
+ 	"Accept" = "application/xml"
+  }
+}
+
+output "body" {
+  value = "${data.http.http_test.body}"
+}
+`
+
+func TestDataSource_xml(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		Providers: testProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testDataSourceConfig_xml, testHttpMock.server.URL),
+				Check: func(s *terraform.State) error {
+					_, ok := s.RootModule().Resources["data.http.http_test"]
+					if !ok {
+						return fmt.Errorf("missing data resource")
+					}
+
+					outputs := s.RootModule().Outputs
+
+					if outputs["body"].Value != "<?xml version=\"1.0\"><body/>" {
+						return fmt.Errorf(
+							`'body' output is %s; want <?xml version=\"1.0\"><body/>`,
+							outputs["body"].Value,
+						)
+					}
+
+					return nil
+				},
+			},
+		},
+	})
+}
+
+func TestAcceptHeaderParsing(t *testing.T) {
+	headers := map[string]interface{}{"user-agent": "golang"}
+	regex := allowedContentTypes(headers)
+	if len(regex) != 3 {
+		t.Errorf("expected three default regular expression, got %d", len(regex))
+	}
+	headers = map[string]interface{}{"accept": "application/xml"}
+	regex = allowedContentTypes(headers)
+	if len(regex) != 4 {
+		t.Errorf("expected two regular expression, got %d", len(regex))
+	}
+	if regex[3].String() != "^application/xml$" {
+		t.Errorf("expected application/xml , got %s", regex[3].String())
+	}
+
+	headers = map[string]interface{}{"accept": "application/xml, application/xxml;q=0.5,"}
+	regex = allowedContentTypes(headers)
+	if len(regex) != 5 {
+		t.Errorf("expected two regular expression, got %d", len(regex))
+	}
+
+	if regex[4].String() != "^application/xxml$" {
+		t.Errorf("expected application/xxml , got %s", regex[4].String())
+	}
+
+	if regex[3].String() != "^application/xml$" {
+		t.Errorf("expected application/xml , got %s", regex[3].String())
+	}
+}
+
 func setUpMockHttpServer() *TestHttpMock {
 	Server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -233,6 +308,10 @@ func setUpMockHttpServer() *TestHttpMock {
 				w.Header().Set("Content-Type", "application/json; charset=UTF-16")
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte("\"1.0.0\""))
+			} else if r.URL.Path == "/xml" {
+				w.Header().Set("Content-Type", "application/xml; charset=UTF-8")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("<?xml version=\"1.0\"><body/>"))
 			} else if r.URL.Path == "/meta_404.txt" {
 				w.WriteHeader(http.StatusNotFound)
 			} else {

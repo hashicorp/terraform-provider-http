@@ -80,7 +80,7 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	contentType := resp.Header.Get("Content-Type")
-	if contentType == "" || isContentTypeAllowed(contentType) == false {
+	if contentType == "" || isContentTypeAllowed(contentType, allowedContentTypes(headers)) == false {
 		return fmt.Errorf("Content-Type is not a text type. Got: %s", contentType)
 	}
 
@@ -105,20 +105,41 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
+// returns an array of regular expressions matching allowed content types.
+// The default accepted content types are supplemented with the types
+// specified in the Accept header. All user specified types must be convertible to string
+func allowedContentTypes(headers map[string]interface{}) []*regexp.Regexp {
+
+	result := []*regexp.Regexp{
+		regexp.MustCompile("^text/.+"),
+		regexp.MustCompile("^application/json$"),
+		regexp.MustCompile("^application/samlmetadata\\+xml"),
+	}
+
+	for k, v := range headers {
+		if strings.EqualFold("accept", k) {
+			switch s := v.(type) {
+			case string:
+				for _, a := range strings.Split(s, ",") {
+					t := strings.TrimSpace(strings.Split(a, ";")[0])
+					if t != "" {
+						result = append(result, regexp.MustCompile("^"+t+"$"))
+					}
+				}
+			}
+		}
+	}
+	return result
+}
+
 // This is to prevent potential issues w/ binary files
 // and generally unprintable characters
 // See https://github.com/hashicorp/terraform/pull/3858#issuecomment-156856738
-func isContentTypeAllowed(contentType string) bool {
+func isContentTypeAllowed(contentType string, allowedContentTypes []*regexp.Regexp) bool {
 
 	parsedType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		return false
-	}
-
-	allowedContentTypes := []*regexp.Regexp{
-		regexp.MustCompile("^text/.+"),
-		regexp.MustCompile("^application/json$"),
-		regexp.MustCompile("^application/samlmetadata\\+xml"),
 	}
 
 	for _, r := range allowedContentTypes {
