@@ -199,7 +199,7 @@ func TestDataSource_compileError(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testDataSourceConfig_error,
-				ExpectError: regexp.MustCompile("required field is not set"),
+				ExpectError: regexp.MustCompile("The argument \"url\" is required, but no definition was found."),
 			},
 		},
 	})
