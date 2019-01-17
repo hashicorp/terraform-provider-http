@@ -1,4 +1,9 @@
-## 1.1.0 (Unreleased)
+## 2.0.0 (Unreleased)
+
+IMPROVEMENTS:
+
+* The provider is now compatible with Terraform v0.12, while retaining compatibility with prior versions.
+
 ## 1.0.1 (January 03, 2018)
 
 * Allow `charset` argument on `Content-Type` ([#5](https://github.com/terraform-providers/terraform-provider-http/issues/5))
