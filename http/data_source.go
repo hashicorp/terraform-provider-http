@@ -1,7 +1,10 @@
 package http
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"mime"
 	"net/http"
@@ -33,6 +36,17 @@ func dataSource() *schema.Resource {
 				},
 			},
 
+			"method": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Default:  http.MethodGet,
+			},
+
+			"req_body_json": {
+				Type:     schema.TypeMap,
+				Optional: true,
+			},
+
 			"body": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -48,12 +62,24 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
+	method := d.Get("method").(string)
+
+	// Leave the body nil if it wasn't sent.
+	var bodyReader io.Reader
+	raw, hasReqBody := d.GetOk("req_body_json")
+	if hasReqBody {
+		bodyJson, err := json.Marshal(raw)
+		if err != nil {
+			return err
+		}
+		bodyReader = bytes.NewReader(bodyJson)
+	}
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
-		return fmt.Errorf("Error creating request: %s", err)
+		return fmt.Errorf("error creating request: %s", err)
 	}
 
 	for name, value := range headers {
@@ -62,7 +88,7 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Error during making a request: %s", url)
+		return fmt.Errorf("error during making a request: %s", url)
 	}
 
 	defer resp.Body.Close()
@@ -78,7 +104,7 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 
 	bytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("Error while reading response body. %s", err)
+		return fmt.Errorf("error while reading response body. %s", err)
 	}
 
 	d.Set("body", string(bytes))

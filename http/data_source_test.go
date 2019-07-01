@@ -1,6 +1,7 @@
 package http
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,7 @@ type TestHttpMock struct {
 const testDataSourceConfig_basic = `
 data "http" "http_test" {
   url = "%s/meta_%d.txt"
+  method = "%s"
 }
 
 output "body" {
@@ -34,7 +36,7 @@ func TestDataSource_http200(t *testing.T) {
 		Providers: testProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: fmt.Sprintf(testDataSourceConfig_basic, testHttpMock.server.URL, 200),
+				Config: fmt.Sprintf(testDataSourceConfig_basic, testHttpMock.server.URL, 200, http.MethodGet),
 				Check: func(s *terraform.State) error {
 					_, ok := s.RootModule().Resources["data.http.http_test"]
 					if !ok {
@@ -66,7 +68,7 @@ func TestDataSource_http404(t *testing.T) {
 		Providers: testProviders,
 		Steps: []resource.TestStep{
 			{
-				Config:      fmt.Sprintf(testDataSourceConfig_basic, testHttpMock.server.URL, 404),
+				Config:      fmt.Sprintf(testDataSourceConfig_basic, testHttpMock.server.URL, 404, http.MethodGet),
 				ExpectError: regexp.MustCompile("HTTP request error. Response code: 404"),
 			},
 		},
@@ -205,11 +207,48 @@ func TestDataSource_compileError(t *testing.T) {
 	})
 }
 
+func TestDataSource_method(t *testing.T) {
+
+	testConf := `
+data "http" "http_test" {
+  url = "%s/meta_%d.txt"
+  method = "%s"
+  req_body_json = {"hello": "world"}
+}
+
+output "body" {
+  value = "${data.http.http_test.body}"
+}
+`
+
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		Providers: testProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testConf, testHttpMock.server.URL, 200, http.MethodPost),
+			},
+		},
+	})
+}
+
 func setUpMockHttpServer() *TestHttpMock {
 	Server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 			w.Header().Set("Content-Type", "text/plain")
+			if r.Method == http.MethodPost {
+				bodyMap := make(map[string]string)
+				if err := json.NewDecoder(r.Body).Decode(&bodyMap); err != nil {
+					w.WriteHeader(400)
+				}
+				if bodyMap["hello"] != "world" {
+					w.WriteHeader(400)
+				}
+				return
+			}
 			if r.URL.Path == "/meta_200.txt" {
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte("1.0.0"))
