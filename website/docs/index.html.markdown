@@ -11,5 +11,11 @@ description: |-
 The HTTP provider is a utility provider for interacting with generic HTTP
 servers as part of a Terraform configuration.
 
-This provider requires no configuration. For information on the resources
-it provides, see the navigation bar.
+## Configuration Reference
+
+The following environment variables are supported:
+
+* `HTTP_DATA_IS_SENSITIVE` - (Optional) By default the request/response body
+  and headers aren't considered as sensitive. If you want to hide data's value
+  in terraform output you would need to set environment variable
+  `HTTP_DATA_IS_SENSITIVE=true`.

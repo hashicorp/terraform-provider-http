@@ -3,16 +3,13 @@ package http
 import (
 	"fmt"
 	"io/ioutil"
-	"mime"
 	"net/http"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
-func dataSource() *schema.Resource {
+func httpDataSource() *schema.Resource {
 	return &schema.Resource{
 		Read: dataSourceRead,
 
@@ -20,9 +17,6 @@ func dataSource() *schema.Resource {
 			"url": {
 				Type:     schema.TypeString,
 				Required: true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
 			},
 
 			"request_headers": {
@@ -35,6 +29,11 @@ func dataSource() *schema.Resource {
 
 			"body": {
 				Type:     schema.TypeString,
+				Computed: true,
+			},
+
+			"headers": {
+				Type:     schema.TypeMap,
 				Computed: true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
@@ -82,33 +81,8 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	d.Set("body", string(bytes))
+	d.Set("headers", flattenResponseHeaders(resp.Header))
 	d.SetId(time.Now().UTC().String())
 
 	return nil
-}
-
-// This is to prevent potential issues w/ binary files
-// and generally unprintable characters
-// See https://github.com/hashicorp/terraform/pull/3858#issuecomment-156856738
-func isContentTypeAllowed(contentType string) bool {
-
-	parsedType, params, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		return false
-	}
-
-	allowedContentTypes := []*regexp.Regexp{
-		regexp.MustCompile("^text/.+"),
-		regexp.MustCompile("^application/json$"),
-		regexp.MustCompile("^application/samlmetadata\\+xml"),
-	}
-
-	for _, r := range allowedContentTypes {
-		if r.MatchString(parsedType) {
-			charset := strings.ToLower(params["charset"])
-			return charset == "" || charset == "utf-8"
-		}
-	}
-
-	return false
 }

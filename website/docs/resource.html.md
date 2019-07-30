@@ -1,14 +1,14 @@
 ---
 layout: "http"
-page_title: "HTTP Data Source"
-sidebar_current: "docs-http-data-source"
+page_title: "HTTP ReSource"
+sidebar_current: "docs-http-resource"
 description: |-
-  Retrieves the content at an HTTP or HTTPS URL.
+  Make an HTTP request and retrieves the content at an HTTP or HTTPS URL.
 ---
 
-# `http` Data Source
+# `http` Resource
 
-The `http` data source makes an HTTP GET request to the given URL and exports
+The `http` resource makes an HTTP request to the given URL and exports
 information about the response.
 
 The given URL may be either an `http` or `https` URL. At present this resource
@@ -21,10 +21,13 @@ mechanism to authenticate the remote server except for general verification of
 the server certificate's chain of trust. Data retrieved from servers not under
 your control should be treated as untrustworthy.
 
+~> **Note** The `terraform destroy` command destroys the `http` state, but not
+the remote HTTP object.
+
 ## Example Usage
 
 ```hcl
-data "http" "example" {
+resource "http" "example" {
   url = "https://checkpoint-api.hashicorp.com/v1/check/terraform"
 
   # Optional request headers
@@ -41,8 +44,22 @@ The following arguments are supported:
 * `url` - (Required) The URL to request data from. This URL must respond with
   a `200 OK` response and a `text/*` or `application/json` Content-Type.
 
+* `method` - (Optional) The HTTP request method to be used. Can either be `GET`,
+  `POST`, `PATCH`, `DELETE`, `PUT`, `HEAD`, `OPTIONS`, `CONNECT` or `TRACE`.
+  Defaults to `GET`.
+
+* `response_status_code` - (Optional) The expected HTTP response status code. If
+  the HTTP response status code doesn't corespond the expected one, the data
+  source will return an error. Defaults to `200`.
+
 * `request_headers` - (Optional) A map of strings representing additional HTTP
   headers to include in the request.
+
+* `request_body` - (Optional) The request body to be sent. E.g. within the HTTP
+  POST request.
+
+* `triggers` - (Optional) A map of arbitrary strings that, when changed, will
+  force the HTTP resource to re-create.
 
 ## Attributes Reference
 
