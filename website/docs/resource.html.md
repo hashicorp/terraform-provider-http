@@ -21,19 +21,33 @@ mechanism to authenticate the remote server except for general verification of
 the server certificate's chain of trust. Data retrieved from servers not under
 your control should be treated as untrustworthy.
 
-~> **Note** The `terraform destroy` command destroys the `http` state, but not
-the remote HTTP object.
-
 ## Example Usage
 
 ```hcl
 resource "http" "example" {
-  url = "https://checkpoint-api.hashicorp.com/v1/check/terraform"
+  url = "https://my-api/v1/res"
 
-  # Optional request headers
-  request_headers = {
-    Accept = "application/json"
+  action {
+    create {
+      method               = "POST"
+      response_status_code = 201
+
+      request_headers = {
+        Accept = "application/json"
+      }
+
+      request_body = jsonencode({"hello":"world"})
+    }
+
+    delete {
+      method               = "DELETE"
+      response_status_code = 204
+    }
   }
+}
+
+output "create_response_headers" {
+  value = "${http.example.action.0.create.0.headers}"
 }
 ```
 
@@ -44,9 +58,34 @@ The following arguments are supported:
 * `url` - (Required) The URL to request data from. This URL must respond with
   a `200 OK` response and a `text/*` or `application/json` Content-Type.
 
+* `action` - (Optional) Corresponds to the terraform actions: `create`, `update`
+  and `delete`. The `action` objects structure is documented below.
+
+* `triggers` - (Optional) A map of arbitrary strings that, when changed, will
+  force the HTTP resource to re-create.
+
+The `create` block supports:
+
 * `method` - (Optional) The HTTP request method to be used. Can either be `GET`,
   `POST`, `PATCH`, `DELETE`, `PUT`, `HEAD`, `OPTIONS`, `CONNECT` or `TRACE`.
-  Defaults to `GET`.
+  Defaults to `POST`. Changing this forces a new resource to be created.
+
+* `response_status_code` - (Optional) The expected HTTP response status code. If
+  the HTTP response status code doesn't corespond the expected one, the data
+  source will return an error. Defaults to `200`. Changing this forces a new
+  resource to be created.
+
+* `request_headers` - (Optional) A map of strings representing additional HTTP
+  headers to include in the request. Changing this forces a new resource to be
+  created.
+
+* `request_body` - (Optional) The request body to be sent. E.g. within the HTTP
+  request. Changing this forces a new resource to be created.
+
+The `update` block supports:
+
+* `method` - (Optional) The HTTP request method to be used. Can either be `GET`,
+  `POST`, `PATCH`, `DELETE`, `PUT`, `HEAD`, `OPTIONS`, `CONNECT` or `TRACE`.
 
 * `response_status_code` - (Optional) The expected HTTP response status code. If
   the HTTP response status code doesn't corespond the expected one, the data
@@ -56,14 +95,26 @@ The following arguments are supported:
   headers to include in the request.
 
 * `request_body` - (Optional) The request body to be sent. E.g. within the HTTP
-  POST request.
+  request.
 
-* `triggers` - (Optional) A map of arbitrary strings that, when changed, will
-  force the HTTP resource to re-create.
+The `delete` block supports:
+
+* `method` - (Optional) The HTTP request method to be used. Can either be `GET`,
+  `POST`, `PATCH`, `DELETE`, `PUT`, `HEAD`, `OPTIONS`, `CONNECT` or `TRACE`.
+
+* `response_status_code` - (Optional) The expected HTTP response status code. If
+  the HTTP response status code doesn't corespond the expected one, the data
+  source will return an error. Defaults to `200`.
+
+* `request_headers` - (Optional) A map of strings representing additional HTTP
+  headers to include in the request.
+
+* `request_body` - (Optional) The request body to be sent. E.g. within the HTTP
+  request.
 
 ## Attributes Reference
 
-The following attributes are exported:
+The following attributes are exported within the `create` and `update` actions:
 
 * `body` - The raw body of the HTTP response.
 * `headers` - The map of strings representing the HTTP response headers. If

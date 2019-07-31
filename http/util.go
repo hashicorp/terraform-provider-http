@@ -47,6 +47,37 @@ func flattenResponseHeaders(header http.Header) map[string]string {
 	return headers
 }
 
+func flattenAction(schema interface{}, body []byte, header http.Header, action string) []map[string][]map[string]interface{} {
+	var res []map[string][]map[string]interface{}
+
+	for _, v := range schema.([]interface{}) {
+		m := make(map[string][]map[string]interface{})
+		for act, val := range v.(map[string]interface{}) {
+			for _, a := range val.([]interface{}) {
+				s := make(map[string]interface{})
+				for k, res := range a.(map[string]interface{}) {
+					if act == action && act != "delete" {
+						// update computed fields
+						if k == "headers" {
+							s[k] = flattenResponseHeaders(header)
+							continue
+						}
+						if k == "body" {
+							s[k] = string(body)
+							continue
+						}
+					}
+					s[k] = res
+				}
+				m[act] = append(m[act], s)
+			}
+		}
+		res = append(res, m)
+	}
+
+	return res
+}
+
 /* GetEnvOrDefault is a helper function that returns the value of the
 given environment variable, if one exists, or the default value */
 func GetEnvOrDefault(k string, defaultvalue string) string {

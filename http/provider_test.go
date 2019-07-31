@@ -36,6 +36,18 @@ func setUpMockHttpServer() *TestHttpMock {
 				if bodyMap["hello"] != "world" {
 					w.WriteHeader(400)
 				}
+			}
+			if r.Method == http.MethodPut {
+				bodyMap := make(map[string]string)
+				if err := json.NewDecoder(r.Body).Decode(&bodyMap); err != nil {
+					w.WriteHeader(400)
+				}
+				if bodyMap["hello"] != "update" {
+					w.WriteHeader(400)
+				}
+			}
+			if r.Method == http.MethodDelete {
+				w.WriteHeader(204)
 				return
 			}
 			if r.URL.Path == "/meta_200.txt" {

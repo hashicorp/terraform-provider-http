@@ -13,11 +13,15 @@ import (
 const testResourceConfig_basic = `
 resource "http" "http_test" {
   url = "%s/meta_%d.txt"
-  method = "%s"
+  action {
+    create {
+      method = "%s"
+    }
+  }
 }
 
 output "body" {
-  value = "${http.http_test.body}"
+  value = "${http.http_test.action.0.create.0.body}"
 }
 `
 
@@ -31,6 +35,130 @@ func TestResource_http200(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(testResourceConfig_basic, testHttpMock.server.URL, 200, http.MethodGet),
+				Check: func(s *terraform.State) error {
+					_, ok := s.RootModule().Resources["http.http_test"]
+					if !ok {
+						return fmt.Errorf("missing resource")
+					}
+
+					outputs := s.RootModule().Outputs
+
+					if outputs["body"].Value != "1.0.0" {
+						return fmt.Errorf(
+							`'body' output is %s; want '1.0.0'`,
+							outputs["body"].Value,
+						)
+					}
+
+					return nil
+				},
+			},
+		},
+	})
+}
+
+const testResourceConfig_update = `
+resource "http" "http_test" {
+  url = "%s/meta_%d.txt"
+  action {
+    create {
+      method = "%s"
+    }
+
+    update {
+      method = "PUT"
+      request_body = jsonencode({"hello":"update"})
+    }
+  }
+}
+
+output "body" {
+  value = "${http.http_test.action.0.create.0.body}"
+}
+`
+
+func TestResource_update(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		Providers: testProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testResourceConfig_basic, testHttpMock.server.URL, 200, http.MethodGet),
+				Check: func(s *terraform.State) error {
+					_, ok := s.RootModule().Resources["http.http_test"]
+					if !ok {
+						return fmt.Errorf("missing resource")
+					}
+
+					outputs := s.RootModule().Outputs
+
+					if outputs["body"].Value != "1.0.0" {
+						return fmt.Errorf(
+							`'body' output is %s; want '1.0.0'`,
+							outputs["body"].Value,
+						)
+					}
+
+					return nil
+				},
+			},
+			{
+				Config: fmt.Sprintf(testResourceConfig_update, testHttpMock.server.URL, 200, http.MethodGet),
+				Check: func(s *terraform.State) error {
+					_, ok := s.RootModule().Resources["http.http_test"]
+					if !ok {
+						return fmt.Errorf("missing resource")
+					}
+
+					outputs := s.RootModule().Outputs
+
+					if outputs["body"].Value != "1.0.0" {
+						return fmt.Errorf(
+							`'body' output is %s; want '1.0.0'`,
+							outputs["body"].Value,
+						)
+					}
+
+					return nil
+				},
+			},
+		},
+	})
+}
+
+const testResourceConfig_delete = `
+resource "http" "http_test" {
+  url = "%s/meta_%d.txt"
+  action {
+    create {
+      method = "%s"
+    }
+
+    delete {
+      method = "DELETE"
+      response_status_code = 204
+    }
+  }
+}
+
+output "body" {
+  value = "${http.http_test.action.0.create.0.body}"
+}
+`
+
+func TestResource_delete(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		Providers: testProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testResourceConfig_delete, testHttpMock.server.URL, 200, http.MethodGet),
 				Check: func(s *terraform.State) error {
 					_, ok := s.RootModule().Resources["http.http_test"]
 					if !ok {
@@ -73,13 +201,18 @@ const testResourceConfig_withHeaders = `
 resource "http" "http_test" {
   url = "%s/restricted/meta_%d.txt"
 
-  request_headers = {
-    "Authorization" = "Zm9vOmJhcg=="
+  action {
+    create {
+      request_headers = {
+        "Authorization" = "Zm9vOmJhcg=="
+      }
+      request_body = jsonencode({"hello":"world"})
+    }
   }
 }
 
 output "body" {
-  value = "${http.http_test.body}"
+  value = "${http.http_test.action.0.create.0.body}"
 }
 `
 
@@ -118,10 +251,16 @@ func TestResource_withHeaders200(t *testing.T) {
 const testResourceConfig_utf8 = `
 resource "http" "http_test" {
   url = "%s/utf-8/meta_%d.txt"
+
+  action {
+    create {
+      request_body = jsonencode({"hello":"world"})
+    }
+  }
 }
 
 output "body" {
-  value = "${http.http_test.body}"
+  value = "${http.http_test.action.0.create.0.body}"
 }
 `
 
@@ -160,10 +299,16 @@ func TestResource_utf8(t *testing.T) {
 const testResourceConfig_utf16 = `
 resource "http" "http_test" {
   url = "%s/utf-16/meta_%d.txt"
+
+  action {
+    create {
+      request_body = jsonencode({"hello":"world"})
+    }
+  }
 }
 
 output "body" {
-  value = "${http.http_test.body}"
+  value = "${http.http_test.action.0.create.0.body}"
 }
 `
 
@@ -206,12 +351,17 @@ func TestResource_method(t *testing.T) {
 	testConf := `
 resource "http" "http_test" {
   url = "%s/meta_%d.txt"
-  method = "%s"
-  request_body = jsonencode({"hello": "world"})
+
+  action {
+    create {
+      method = "%s"
+      request_body = jsonencode({"hello": "world"})
+    }
+  }
 }
 
 output "body" {
-  value = "${http.http_test.body}"
+  value = "${http.http_test.action.0.create.0.body}"
 }
 `
 
