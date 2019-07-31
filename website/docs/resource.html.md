@@ -56,7 +56,7 @@ output "create_response_headers" {
 The following arguments are supported:
 
 * `url` - (Required) The URL to request data from. This URL must respond with
-  a `200 OK` response and a `text/*` or `application/json` Content-Type.
+  a `text/*` or `application/json` Content-Type.
 
 * `action` - (Optional) Corresponds to the terraform actions: `create`, `update`
   and `delete`. The `action` objects structure is documented below.
