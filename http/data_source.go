@@ -62,7 +62,7 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Error during making a request: %s", err)
+		return fmt.Errorf("Error making a request: %s", err)
 	}
 
 	defer resp.Body.Close()
