@@ -42,6 +42,10 @@ The following arguments are supported:
 * `request_headers` - (Optional) A map of strings representing additional HTTP
   headers to include in the request.
 
+* `ca_certificate` - (Optional) PEM-encoded root certificates bundle for TLS authentication.
+
+* `insecure` - (Optional) Whether server should be accessed without verifying the TLS certificate. Defaults to false.
+
 ## Attributes Reference
 
 The following attributes are exported:

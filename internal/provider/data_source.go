@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"mime"
@@ -48,6 +50,16 @@ func dataSource() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
+
+			"ca_certificate": {
+				Type:        schema.TypeString,
+				Optional:    true,
+			},
+
+			"insecure": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
 			},
 		},
 	}
@@ -56,8 +68,31 @@ func dataSource() *schema.Resource {
 func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{}) (diags diag.Diagnostics) {
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
+	caCert := d.Get("ca_certificate").(string)
 
-	client := &http.Client{}
+	// Get the System Cert Pool
+	caCertPool, _ := x509.SystemCertPool()
+	if caCertPool == nil {
+		caCertPool = x509.NewCertPool()
+	}
+
+	// Append `ca_certificate` to the system CA cert pool
+	if caCert != "" {
+		if err := caCertPool.AppendCertsFromPEM([]byte(caCert)); !err {
+			return fmt.Errorf("Error when adding CA certificate: %s", err)
+		}
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs:            caCertPool,
+			InsecureSkipVerify: d.Get("insecure").(bool),
+		},
+	}
+
+	client := &http.Client{
+		Transport: tr,
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
