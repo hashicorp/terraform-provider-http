@@ -78,8 +78,8 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 
 	// Append `ca_certificate` to the system CA cert pool
 	if caCert != "" {
-		if err := caCertPool.AppendCertsFromPEM([]byte(caCert)); !err {
-			return fmt.Errorf("Error when adding CA certificate: %s", err)
+		if ok := caCertPool.AppendCertsFromPEM([]byte(caCert)); !ok {
+			return fmt.Errorf("Error when adding CA certificate to certificate pool")
 		}
 	}
 
