@@ -40,6 +40,14 @@ func dataSource() *schema.Resource {
 					Type: schema.TypeString,
 				},
 			},
+
+			"response_headers": {
+				Type:     schema.TypeMap,
+				Computed: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+			},
 		},
 	}
 }
@@ -81,7 +89,17 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error while reading response body. %s", err)
 	}
 
+	response_headers := make(map[string]string)
+	for k, v := range resp.Header {
+		// Concatenate according to RFC2616
+		// cf. https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
+		response_headers[k] = strings.Join(v, ", ")
+	}
+
 	d.Set("body", string(bytes))
+	if err = d.Set("response_headers", response_headers); err != nil {
+		return fmt.Errorf("Error setting HTTP Response Headers: %s", err)
+	}
 	d.SetId(time.Now().UTC().String())
 
 	return nil

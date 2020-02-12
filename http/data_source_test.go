@@ -21,7 +21,11 @@ data "http" "http_test" {
 }
 
 output "body" {
-  value = "${data.http.http_test.body}"
+  value = data.http.http_test.body
+}
+
+output "response_headers" {
+  value = data.http.http_test.response_headers
 }
 `
 
@@ -47,6 +51,22 @@ func TestDataSource_http200(t *testing.T) {
 						return fmt.Errorf(
 							`'body' output is %s; want '1.0.0'`,
 							outputs["body"].Value,
+						)
+					}
+
+					response_headers := outputs["response_headers"].Value.(map[string]interface{})
+
+					if response_headers["X-Single"].(string) != "foobar" {
+						return fmt.Errorf(
+							`'X-Single' response header is %s; want 'foobar'`,
+							response_headers["X-Single"].(string),
+						)
+					}
+
+					if response_headers["X-Double"].(string) != "1, 2" {
+						return fmt.Errorf(
+							`'X-Double' response header is %s; want '1, 2'`,
+							response_headers["X-Double"].(string),
 						)
 					}
 
@@ -83,7 +103,7 @@ data "http" "http_test" {
 }
 
 output "body" {
-  value = "${data.http.http_test.body}"
+  value = data.http.http_test.body
 }
 `
 
@@ -210,6 +230,9 @@ func setUpMockHttpServer() *TestHttpMock {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			w.Header().Set("Content-Type", "text/plain")
+			w.Header().Add("X-Single", "foobar")
+			w.Header().Add("X-Double", "1")
+			w.Header().Add("X-Double", "2")
 			if r.URL.Path == "/meta_200.txt" {
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte("1.0.0"))
