@@ -1,5 +1,9 @@
 ## 1.2.0 (Unreleased)
 
+IMPROVEMENTS:
+
+* Switch to v1.7.0 of the standalone plugin SDK [GH-35]
+
 BUG FIXES:
 
 * Fix request error message to include the `err` and not just url [GH-26]
