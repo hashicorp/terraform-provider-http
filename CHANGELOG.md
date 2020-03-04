@@ -3,6 +3,7 @@
 IMPROVEMENTS:
 
 * Switch to v1.7.0 of the standalone plugin SDK [GH-35]
+* Added response_headers to datasource [GH-31]
 
 BUG FIXES:
 
