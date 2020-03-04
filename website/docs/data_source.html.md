@@ -49,3 +49,7 @@ The following arguments are supported:
 The following attributes are exported:
 
 * `body` - The raw body of the HTTP response.
+
+* `response_headers` - A map of strings representing the response HTTP headers.
+  Duplicate headers are contatenated with `, ` according to
+  [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2)
