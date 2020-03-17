@@ -1,13 +1,13 @@
-## 1.2.0 (Unreleased)
+## 1.2.0 (March 17, 2020)
 
 IMPROVEMENTS:
 
-* Switch to v1.7.0 of the standalone plugin SDK [GH-35]
-* Added response_headers to datasource [GH-31]
+* Switch to v1.7.0 of the standalone plugin SDK ([#35](https://github.com/terraform-providers/terraform-provider-http/issues/35))
+* Added response_headers to datasource ([#31](https://github.com/terraform-providers/terraform-provider-http/issues/31))
 
 BUG FIXES:
 
-* Fix request error message to include the `err` and not just url [GH-26]
+* Fix request error message to include the `err` and not just url ([#26](https://github.com/terraform-providers/terraform-provider-http/issues/26))
 
 ## 1.1.1 (May 01, 2019)
 
