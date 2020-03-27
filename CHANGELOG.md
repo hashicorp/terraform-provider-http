@@ -1,4 +1,9 @@
 ## 1.3.0 (Unreleased)
+
+NOTES:
+
+* The provider now uses the binary driver for acceptance tests [GH-39]
+
 ## 1.2.0 (March 17, 2020)
 
 IMPROVEMENTS:
