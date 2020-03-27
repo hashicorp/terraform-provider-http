@@ -207,24 +207,6 @@ func TestDataSource_utf16(t *testing.T) {
 	})
 }
 
-const testDataSourceConfig_error = `
-data "http" "http_test" {
-
-}
-`
-
-func TestDataSource_compileError(t *testing.T) {
-	resource.UnitTest(t, resource.TestCase{
-		Providers: testProviders,
-		Steps: []resource.TestStep{
-			{
-				Config:      testDataSourceConfig_error,
-				ExpectError: regexp.MustCompile("The argument \"url\" is required, but no definition was found."),
-			},
-		},
-	})
-}
-
 func setUpMockHttpServer() *TestHttpMock {
 	Server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
