@@ -8,12 +8,12 @@ NOTES:
 
 IMPROVEMENTS:
 
-* Switch to v1.7.0 of the standalone plugin SDK ([#35](https://github.com/terraform-providers/terraform-provider-http/issues/35))
-* Added response_headers to datasource ([#31](https://github.com/terraform-providers/terraform-provider-http/issues/31))
+* Switch to v1.7.0 of the standalone plugin SDK ([#35](https://github.com/hashicorp/terraform-provider-http/issues/35))
+* Added response_headers to datasource ([#31](https://github.com/hashicorp/terraform-provider-http/issues/31))
 
 BUG FIXES:
 
-* Fix request error message to include the `err` and not just url ([#26](https://github.com/terraform-providers/terraform-provider-http/issues/26))
+* Fix request error message to include the `err` and not just url ([#26](https://github.com/hashicorp/terraform-provider-http/issues/26))
 
 ## 1.1.1 (May 01, 2019)
 
@@ -27,11 +27,11 @@ IMPROVEMENTS:
 
 ## 1.0.1 (January 03, 2018)
 
-* Allow `charset` argument on `Content-Type` ([#5](https://github.com/terraform-providers/terraform-provider-http/issues/5))
+* Allow `charset` argument on `Content-Type` ([#5](https://github.com/hashicorp/terraform-provider-http/issues/5))
 
 ## 1.0.0 (September 14, 2017)
 
-* add content type for ADFS FederationMetadata.xml ([#4](https://github.com/terraform-providers/terraform-provider-http/issues/4))
+* add content type for ADFS FederationMetadata.xml ([#4](https://github.com/hashicorp/terraform-provider-http/issues/4))
 
 ## 0.1.0 (June 20, 2017)
 
