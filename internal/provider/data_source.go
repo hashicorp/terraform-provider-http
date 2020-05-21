@@ -50,7 +50,7 @@ func dataSource() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-
+			},
 			"ca_certificate": {
 				Type:     schema.TypeString,
 				Optional: true,
