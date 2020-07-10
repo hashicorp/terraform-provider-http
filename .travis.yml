@@ -25,7 +25,6 @@ script:
 - make test
 - make testacc
 - make vet
-- make website-test
 
 branches:
   only:

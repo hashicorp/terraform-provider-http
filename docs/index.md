@@ -1,7 +1,5 @@
 ---
-layout: "http"
-page_title: "Provider: HTTP"
-sidebar_current: "docs-http-index"
+page_title: "HTTP Provider"
 description: |-
   The HTTP provider interacts with HTTP servers.
 ---

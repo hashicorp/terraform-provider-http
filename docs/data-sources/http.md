@@ -1,7 +1,5 @@
 ---
-layout: "http"
 page_title: "HTTP Data Source"
-sidebar_current: "docs-http-data-source"
 description: |-
   Retrieves the content at an HTTP or HTTPS URL.
 ---

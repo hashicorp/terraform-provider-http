@@ -46,7 +46,7 @@ behavior "pull_request_size_labeler" "size" {
 
 behavior "pull_request_path_labeler" "cross_provider_labels" {
     label_map = {
-        "documentation" = ["website/**/*"]
+        "documentation" = ["docs/**/*"]
         "dependencies" = ["vendor/**/*"]
     }
 }
