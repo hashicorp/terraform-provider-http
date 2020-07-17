@@ -1,4 +1,8 @@
-## 1.3.0 (Unreleased)
+## 1.3.1 (Unreleased)
+
+BUG FIXES:
+
+* Modified some of the documentation to work a bit better in the registry [GH-42]
 
 NOTES:
 
