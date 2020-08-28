@@ -37,7 +37,7 @@ $ make build
 
 Using the provider
 ----------------------
-see <https://www.terraform.io/docs/providers/http/data_source.html>
+see <https://registry.terraform.io/providers/hashicorp/http/latest/docs>
 
 Developing the Provider
 ---------------------------
