@@ -1,0 +1,31 @@
+
+name: 'Push'
+
+on:
+  push
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Unshallow
+        run: git fetch --prune --unshallow
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14
+      - uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 0.12.26
+      - name: go errcheck
+        run: scripts/errcheck.sh
+      - name: Test
+        run: make test
+      - name: Acceptance test
+        run: make testacc
+      - name: go vet
+        run: make vet
