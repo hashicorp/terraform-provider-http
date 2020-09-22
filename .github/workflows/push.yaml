@@ -20,7 +20,7 @@ jobs:
           go-version: 1.14
       - uses: hashicorp/setup-terraform@v1
         with:
-          terraform_version: 0.12.26
+          terraform_version: 0.12.29
       - name: go errcheck
         run: scripts/errcheck.sh
       - name: Test
