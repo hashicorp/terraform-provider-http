@@ -18,9 +18,12 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: 1.14
-      - uses: hashicorp/setup-terraform@v1
-        with:
-          terraform_version: 0.12.29
+      - name: Set up Terraform
+        run: |
+          cd /tmp
+          curl -fsSL https://releases.hashicorp.com/terraform/0.12.29/terraform_0.12.29_linux_amd64.zip
+          unzip terraform_0.12.29_linux_amd64.zip
+          move terraform /usr/local/bin
       - name: go errcheck
         run: scripts/errcheck.sh
       - name: Test
