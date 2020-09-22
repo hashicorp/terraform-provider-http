@@ -1,3 +1,10 @@
+## 1.4 (September 22, 2020)
+
+NOTES:
+
+* Add support for `http_archive`.
+
+
 ## 1.3.1 (Unreleased)
 
 BUG FIXES:
