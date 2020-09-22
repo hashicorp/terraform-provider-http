@@ -1,20 +1,23 @@
 package http
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"fmt"
-	"io/ioutil"
-	"mime"
+	"io"
+	"log"
 	"net/http"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
-func dataSource() *schema.Resource {
+func dataSourceArchive() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceRead,
+		Read: dataSourceArchiveRead,
 
 		Schema: map[string]*schema.Schema{
 			"url": {
@@ -33,8 +36,8 @@ func dataSource() *schema.Resource {
 				},
 			},
 
-			"body": {
-				Type:     schema.TypeString,
+			"files": {
+				Type:     schema.TypeMap,
 				Computed: true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
@@ -52,7 +55,7 @@ func dataSource() *schema.Resource {
 	}
 }
 
-func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceArchiveRead(d *schema.ResourceData, meta interface{}) error {
 
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
@@ -79,14 +82,50 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("HTTP request error. Response code: %d", resp.StatusCode)
 	}
 
-	contentType := resp.Header.Get("Content-Type")
-	if contentType == "" || isContentTypeAllowed(contentType) == false {
-		return fmt.Errorf("Content-Type is not a text type. Got: %s", contentType)
+	zr, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("Error while reading response body. %s", err)
+	tarReader := tar.NewReader(zr)
+	files := make(map[string]string)
+
+	for {
+		header, err := tarReader.Next()
+
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			return fmt.Errorf("error while reading tar file: %s", err)
+		}
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			continue
+		case tar.TypeReg:
+			contents := new(bytes.Buffer)
+
+			if _, err := io.Copy(contents, tarReader); err != nil {
+				log.Fatal(err)
+			}
+
+			// remove leading `./` from filename
+			name := strings.TrimLeft(header.Name, "./")
+
+			files[name] = base64.StdEncoding.EncodeToString(contents.Bytes())
+		default:
+			return fmt.Errorf("unknown tar type: %v", header.Typeflag)
+		}
+	}
+
+	if err := zr.Close(); err != nil {
+		return fmt.Errorf("error while closing gzip file: %s", err)
+	}
+
+	if err = d.Set("files", files); err != nil {
+		return fmt.Errorf("error setting Files: %s", err)
 	}
 
 	response_headers := make(map[string]string)
@@ -96,40 +135,10 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 		response_headers[k] = strings.Join(v, ", ")
 	}
 
-	if err = d.Set("body", string(bytes)); err != nil {
-		return fmt.Errorf("Error setting Body: %s", err)
-	}
-
 	if err = d.Set("response_headers", response_headers); err != nil {
 		return fmt.Errorf("Error setting HTTP Response Headers: %s", err)
 	}
 	d.SetId(time.Now().UTC().String())
 
 	return nil
-}
-
-// This is to prevent potential issues w/ binary files
-// and generally unprintable characters
-// See https://github.com/hashicorp/terraform/pull/3858#issuecomment-156856738
-func isContentTypeAllowed(contentType string) bool {
-
-	parsedType, params, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		return false
-	}
-
-	allowedContentTypes := []*regexp.Regexp{
-		regexp.MustCompile("^text/.+"),
-		regexp.MustCompile("^application/json$"),
-		regexp.MustCompile("^application/samlmetadata\\+xml"),
-	}
-
-	for _, r := range allowedContentTypes {
-		if r.MatchString(parsedType) {
-			charset := strings.ToLower(params["charset"])
-			return charset == "" || charset == "utf-8"
-		}
-	}
-
-	return false
 }

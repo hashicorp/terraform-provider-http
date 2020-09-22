@@ -1,0 +1,34 @@
+
+name: 'Push'
+
+on:
+  push
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Unshallow
+        run: git fetch --prune --unshallow
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.14
+      - name: Set up Terraform
+        run: |
+          cd /tmp
+          curl -fsSL -o /tmp/terraform_0.12.29_linux_amd64.zip https://releases.hashicorp.com/terraform/0.12.29/terraform_0.12.29_linux_amd64.zip
+          unzip terraform_0.12.29_linux_amd64.zip
+          sudo mv terraform /usr/local/bin
+      - name: go errcheck
+        run: scripts/errcheck.sh
+      - name: Test
+        run: make test
+      - name: Acceptance test
+        run: make testacc
+      - name: go vet
+        run: make vet
