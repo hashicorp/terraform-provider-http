@@ -21,7 +21,7 @@ jobs:
       - name: Set up Terraform
         run: |
           cd /tmp
-          curl -fsSL https://releases.hashicorp.com/terraform/0.12.29/terraform_0.12.29_linux_amd64.zip
+          curl -fsSL -o /tmp/terraform_0.12.29_linux_amd64.zip https://releases.hashicorp.com/terraform/0.12.29/terraform_0.12.29_linux_amd64.zip
           unzip terraform_0.12.29_linux_amd64.zip
           move terraform /usr/local/bin
       - name: go errcheck
