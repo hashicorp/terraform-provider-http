@@ -124,7 +124,7 @@ func isContentTypeAllowed(contentType string) bool {
 	for _, r := range allowedContentTypes {
 		if r.MatchString(parsedType) {
 			charset := strings.ToLower(params["charset"])
-			return charset == "" || charset == "utf-8"
+			return charset == "" || charset == "utf-8" || charset == "us-ascii"
 		}
 	}
 
