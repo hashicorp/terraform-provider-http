@@ -3,6 +3,7 @@
 BUG FIXES:
 
 * Modified some of the documentation to work a bit better in the registry [GH-42]
+* Allowed the `us-ascii` charset in addition to `utf-8` [GH-43]
 
 NOTES:
 
