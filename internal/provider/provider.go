@@ -1,10 +1,10 @@
-package http
+package provider
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func Provider() *schema.Provider {
+func New() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{},
 
