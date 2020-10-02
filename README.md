@@ -37,7 +37,7 @@ $ make build
 
 Using the provider
 ----------------------
-see <https://www.terraform.io/docs/providers/http/data_source.html>
+see <https://www.terraform.io/docs/providers/http/>
 
 Developing the Provider
 ---------------------------
