@@ -71,15 +71,16 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	caCert := d.Get("ca_certificate").(string)
 
 	// Get the System Cert Pool
-	caCertPool, _ := x509.SystemCertPool()
-	if caCertPool == nil {
-		caCertPool = x509.NewCertPool()
+	caCertPool, err := x509.SystemCertPool()
+	if err != nil {
+		return fmt.Errorf("Error tls: %s", err)
 	}
 
-	// Append `ca_certificate` to the system CA cert pool
+	// Use `ca_certificate` cert pool
 	if caCert != "" {
+		caCertPool = x509.NewCertPool()
 		if ok := caCertPool.AppendCertsFromPEM([]byte(caCert)); !ok {
-			return fmt.Errorf("Error when adding CA certificate to certificate pool")
+			return fmt.Errorf("Error tls: Can't add the CA certificate to certificate pool")
 		}
 	}
 
