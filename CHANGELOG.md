@@ -1,13 +1,13 @@
-## 1.3.1 (Unreleased)
+## 2.0.0 (Unreleased)
+
+BREAKING CHANGES:
+
+* Upgrade to version 2 of the Terraform Plugin SDK, which drops support for Terraform 0.11. This provider will continue to work as expected for users of Terraform 0.11, which will not download the new version. [GH-47]
 
 BUG FIXES:
 
 * Modified some of the documentation to work a bit better in the registry [GH-42]
 * Allowed the `us-ascii` charset in addition to `utf-8` [GH-43]
-
-NOTES:
-
-* The provider now uses the binary driver for acceptance tests [GH-39]
 
 ## 1.2.0 (March 17, 2020)
 
