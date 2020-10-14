@@ -200,8 +200,9 @@ func TestDataSource_utf16(t *testing.T) {
 		Providers: testProviders,
 		Steps: []resource.TestStep{
 			{
-				Config:      fmt.Sprintf(testDataSourceConfig_utf16, testHttpMock.server.URL, 200),
-				ExpectError: regexp.MustCompile("Content-Type is not a text type. Got: application/json; charset=UTF-16"),
+				Config: fmt.Sprintf(testDataSourceConfig_utf16, testHttpMock.server.URL, 200),
+				// This should now be a warning, but unsure how to test for it...
+				//ExpectWarning: regexp.MustCompile("Content-Type is not a text type. Got: application/json; charset=UTF-16"),
 			},
 		},
 	})
