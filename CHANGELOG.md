@@ -1,19 +1,19 @@
-## 2.0.0 (Unreleased)
+## 2.0.0 (October 14, 2020)
 
 Binary releases of this provider will now include the linux-arm64 platform.
 
 BREAKING CHANGES:
 
-* Upgrade to version 2 of the Terraform Plugin SDK, which drops support for Terraform 0.11. This provider will continue to work as expected for users of Terraform 0.11, which will not download the new version. [GH-47]
+* Upgrade to version 2 of the Terraform Plugin SDK, which drops support for Terraform 0.11. This provider will continue to work as expected for users of Terraform 0.11, which will not download the new version. ([#47](https://github.com/terraform-providers/terraform-provider-http/issues/47))
 
 IMPROVEMENTS:
 
-* Relaxed error on non-text `Content-Type` headers to be a warning instead [GH-50]
+* Relaxed error on non-text `Content-Type` headers to be a warning instead ([#50](https://github.com/terraform-providers/terraform-provider-http/issues/50))
 
 BUG FIXES:
 
-* Modified some of the documentation to work a bit better in the registry [GH-42]
-* Allowed the `us-ascii` charset in addition to `utf-8` [GH-43]
+* Modified some of the documentation to work a bit better in the registry ([#42](https://github.com/terraform-providers/terraform-provider-http/issues/42))
+* Allowed the `us-ascii` charset in addition to `utf-8` ([#43](https://github.com/terraform-providers/terraform-provider-http/issues/43))
 
 ## 1.2.0 (March 17, 2020)
 
