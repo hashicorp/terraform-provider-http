@@ -6,6 +6,10 @@ BREAKING CHANGES:
 
 * Upgrade to version 2 of the Terraform Plugin SDK, which drops support for Terraform 0.11. This provider will continue to work as expected for users of Terraform 0.11, which will not download the new version. [GH-47]
 
+IMPROVEMENTS:
+
+* Relaxed error on non-text `Content-Type` headers to be a warning instead [GH-50]
+
 BUG FIXES:
 
 * Modified some of the documentation to work a bit better in the registry [GH-42]
