@@ -1,20 +1,21 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"mime"
 	"net/http"
 	"regexp"
 	"strings"
-	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSource() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceRead,
+		ReadContext: dataSourceRead,
 
 		Schema: map[string]*schema.Schema{
 			"url": {
@@ -52,16 +53,15 @@ func dataSource() *schema.Resource {
 	}
 }
 
-func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
-
+func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{}) (diags diag.Diagnostics) {
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("Error creating request: %s", err)
+		return append(diags, diag.Errorf("Error creating request: %s", err)...)
 	}
 
 	for name, value := range headers {
@@ -70,45 +70,51 @@ func dataSourceRead(d *schema.ResourceData, meta interface{}) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("Error making a request: %s", err)
+		return append(diags, diag.Errorf("Error making request: %s", err)...)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return fmt.Errorf("HTTP request error. Response code: %d", resp.StatusCode)
+		return append(diags, diag.Errorf("HTTP request error. Response code: %d", resp.StatusCode)...)
 	}
 
 	contentType := resp.Header.Get("Content-Type")
-	if contentType == "" || isContentTypeAllowed(contentType) == false {
-		return fmt.Errorf("Content-Type is not a text type. Got: %s", contentType)
+	if contentType == "" || isContentTypeText(contentType) == false {
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Warning,
+			Summary:  fmt.Sprintf("Content-Type is not recognized as a text type, got %q", contentType),
+			Detail:   "If the content is binary data, Terraform may not properly handle the contents of the response.",
+		})
 	}
 
 	bytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("Error while reading response body. %s", err)
+		return append(diags, diag.FromErr(err)...)
 	}
 
-	response_headers := make(map[string]string)
+	responseHeaders := make(map[string]string)
 	for k, v := range resp.Header {
 		// Concatenate according to RFC2616
 		// cf. https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
-		response_headers[k] = strings.Join(v, ", ")
+		responseHeaders[k] = strings.Join(v, ", ")
 	}
 
 	d.Set("body", string(bytes))
-	if err = d.Set("response_headers", response_headers); err != nil {
-		return fmt.Errorf("Error setting HTTP Response Headers: %s", err)
+	if err = d.Set("response_headers", responseHeaders); err != nil {
+		return append(diags, diag.Errorf("Error setting HTTP response headers: %s", err)...)
 	}
-	d.SetId(time.Now().UTC().String())
 
-	return nil
+	// set ID as something more stable than time
+	d.SetId(url)
+
+	return diags
 }
 
 // This is to prevent potential issues w/ binary files
 // and generally unprintable characters
 // See https://github.com/hashicorp/terraform/pull/3858#issuecomment-156856738
-func isContentTypeAllowed(contentType string) bool {
+func isContentTypeText(contentType string) bool {
 
 	parsedType, params, err := mime.ParseMediaType(contentType)
 	if err != nil {
