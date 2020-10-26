@@ -41,7 +41,7 @@ The following arguments are supported:
 
 * `request_headers` - (Optional) A map of strings representing additional HTTP
 * `request_method` - (Optional) Method to use to perform request default is GET
-* `request_body` - (Optional) Body of request to send
+* `request_body` - (Optional) Body of request to send in request
   headers to include in the request.
 
 ## Attributes Reference
