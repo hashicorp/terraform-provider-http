@@ -40,6 +40,8 @@ The following arguments are supported:
   a `200 OK` response and a `text/*` or `application/json` Content-Type.
 
 * `request_headers` - (Optional) A map of strings representing additional HTTP
+* `request_method` - (Optional) Method to use to perform request default is GET
+* `request_body` - (Optional) Body of request to send
   headers to include in the request.
 
 ## Attributes Reference
