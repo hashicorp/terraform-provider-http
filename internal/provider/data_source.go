@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -34,6 +35,25 @@ func dataSource() *schema.Resource {
 				},
 			},
 
+			"request_method": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Default:     "GET",
+				Description: "Request method type to call the API with.",
+			},
+
+			"request_body": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Default: nil,
+			},
+
 			"body": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -56,10 +76,12 @@ func dataSource() *schema.Resource {
 func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{}) (diags diag.Diagnostics) {
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
+	method := d.Get("request_method").(string)
+	body := []byte(d.Get("request_body").(string))
 
 	client := &http.Client{}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewBuffer(body))
 	if err != nil {
 		return append(diags, diag.Errorf("Error creating request: %s", err)...)
 	}

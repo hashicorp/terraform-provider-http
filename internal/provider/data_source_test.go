@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -18,6 +19,21 @@ type TestHttpMock struct {
 const testDataSourceConfig_basic = `
 data "http" "http_test" {
   url = "%s/meta_%d.txt"
+}
+
+output "body" {
+  value = data.http.http_test.body
+}
+
+output "response_headers" {
+  value = data.http.http_test.response_headers
+}
+`
+const testDataSourceConfig_post = `
+data "http" "http_test" {
+  url = "%s/meta_%d.txt"
+  request_method = "POST"
+  request_body = "mytest"
 }
 
 output "body" {
@@ -47,9 +63,57 @@ func TestDataSource_http200(t *testing.T) {
 
 					outputs := s.RootModule().Outputs
 
-					if outputs["body"].Value != "1.0.0" {
+					if outputs["body"].Value != "1.0.0,GET" {
 						return fmt.Errorf(
-							`'body' output is %s; want '1.0.0'`,
+							`'body' output is %s; want '1.0.0,GET'`,
+							outputs["body"].Value,
+						)
+					}
+
+					response_headers := outputs["response_headers"].Value.(map[string]interface{})
+
+					if response_headers["X-Single"].(string) != "foobar" {
+						return fmt.Errorf(
+							`'X-Single' response header is %s; want 'foobar'`,
+							response_headers["X-Single"].(string),
+						)
+					}
+
+					if response_headers["X-Double"].(string) != "1, 2" {
+						return fmt.Errorf(
+							`'X-Double' response header is %s; want '1, 2'`,
+							response_headers["X-Double"].(string),
+						)
+					}
+
+					return nil
+				},
+			},
+		},
+	})
+}
+
+func TestDataSource_post_http200(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		Providers: testProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testDataSourceConfig_post, testHttpMock.server.URL, 200),
+				Check: func(s *terraform.State) error {
+					_, ok := s.RootModule().Resources["data.http.http_test"]
+					if !ok {
+						return fmt.Errorf("missing data resource")
+					}
+
+					outputs := s.RootModule().Outputs
+
+					if outputs["body"].Value != "1.0.0,POST,mytest" {
+						return fmt.Errorf(
+							`'body' output is %s; want '1.0.0,POST,mytest'`,
 							outputs["body"].Value,
 						)
 					}
@@ -217,8 +281,18 @@ func setUpMockHttpServer() *TestHttpMock {
 			w.Header().Add("X-Double", "1")
 			w.Header().Add("X-Double", "2")
 			if r.URL.Path == "/meta_200.txt" {
+				var body bytes.Buffer
+				body.WriteString("1.0.0")
+				if r.Method == "GET" {
+					body.WriteString(",GET")
+				} else if r.Method == "POST" {
+					buf := new(bytes.Buffer)
+					buf.ReadFrom(r.Body)
+					newStr := buf.String()
+					body.WriteString(fmt.Sprintf(",POST,%s", newStr))
+				}
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("1.0.0"))
+				w.Write(body.Bytes())
 			} else if r.URL.Path == "/restricted/meta_200.txt" {
 				if r.Header.Get("Authorization") == "Zm9vOmJhcg==" {
 					w.WriteHeader(http.StatusOK)
