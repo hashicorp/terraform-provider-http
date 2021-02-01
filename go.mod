@@ -1,5 +1,5 @@
 module github.com/terraform-providers/terraform-provider-http
 
-require github.com/hashicorp/terraform-plugin-sdk/v2 v2.0.3
+require github.com/hashicorp/terraform-plugin-sdk/v2 v2.4.2
 
 go 1.13
