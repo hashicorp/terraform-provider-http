@@ -125,6 +125,7 @@ func isContentTypeText(contentType string) bool {
 		regexp.MustCompile("^text/.+"),
 		regexp.MustCompile("^application/json$"),
 		regexp.MustCompile("^application/samlmetadata\\+xml"),
+		regexp.MustCompile("^application/vnd.api\\+json"),
 	}
 
 	for _, r := range allowedContentTypes {
