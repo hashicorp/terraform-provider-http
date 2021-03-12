@@ -42,6 +42,8 @@ The following arguments are supported:
 * `request_headers` - (Optional) A map of strings representing additional HTTP
   headers to include in the request.
 
+* `timeout` - (Optional) Client timeout in seconds
+
 ## Attributes Reference
 
 The following attributes are exported:
