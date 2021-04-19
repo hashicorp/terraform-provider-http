@@ -208,6 +208,53 @@ func TestDataSource_utf16(t *testing.T) {
 	})
 }
 
+// TODO: This test fails under Terraform 0.14. It should be uncommented when we
+// are able to include Terraform version logic within acceptance tests, or when
+// 0.14 is removed from the test matrix.
+// See https://github.com/hashicorp/terraform-provider-http/pull/74
+//
+// const testDataSourceConfig_x509cert = `
+// data "http" "http_test" {
+//   url = "%s/x509/cert.pem"
+// }
+
+// output "body" {
+//   value = "${data.http.http_test.body}"
+// }
+// `
+
+// func TestDataSource_x509cert(t *testing.T) {
+// 	testHttpMock := setUpMockHttpServer()
+
+// 	defer testHttpMock.server.Close()
+
+// 	resource.UnitTest(t, resource.TestCase{
+// 		Providers: testProviders,
+// 		Steps: []resource.TestStep{
+// 			{
+// 				Config: fmt.Sprintf(testDataSourceConfig_x509cert, testHttpMock.server.URL),
+// 				Check: func(s *terraform.State) error {
+// 					_, ok := s.RootModule().Resources["data.http.http_test"]
+// 					if !ok {
+// 						return fmt.Errorf("missing data resource")
+// 					}
+
+// 					outputs := s.RootModule().Outputs
+
+// 					if outputs["body"].Value != "pem" {
+// 						return fmt.Errorf(
+// 							`'body' output is %s; want 'pem'`,
+// 							outputs["body"].Value,
+// 						)
+// 					}
+
+// 					return nil
+// 				},
+// 			},
+// 		},
+// 	})
+// }
+
 func setUpMockHttpServer() *TestHttpMock {
 	Server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -234,6 +281,10 @@ func setUpMockHttpServer() *TestHttpMock {
 				w.Header().Set("Content-Type", "application/json; charset=UTF-16")
 				w.WriteHeader(http.StatusOK)
 				w.Write([]byte("\"1.0.0\""))
+			} else if r.URL.Path == "/x509/cert.pem" {
+				w.Header().Set("Content-Type", "application/x-x509-ca-cert")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("pem"))
 			} else if r.URL.Path == "/meta_404.txt" {
 				w.WriteHeader(http.StatusNotFound)
 			} else {
