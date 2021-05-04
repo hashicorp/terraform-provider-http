@@ -51,8 +51,8 @@ jobs:
       fail-fast: false
       matrix:
         terraform:
-          - '0.12.30'
-          - '0.13.6'
+          - '0.12.31'
+          - '0.13.7'
           - '0.14.10'
           - '0.15.0-rc2'
     steps:
