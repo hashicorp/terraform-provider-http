@@ -44,6 +44,10 @@ The following arguments are supported:
 
 * `timeout` - (Optional) Client timeout in seconds
 
+* `ca_certificate` - (Optional) PEM-encoded root certificates bundle for TLS authentication.
+
+* `insecure` - (Optional) Whether server should be accessed without verifying the TLS certificate. Defaults to false.
+
 ## Attributes Reference
 
 The following attributes are exported:

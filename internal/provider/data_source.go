@@ -2,6 +2,8 @@ package provider
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"mime"
@@ -58,6 +60,16 @@ func dataSource() *schema.Resource {
 					Type: schema.TypeString,
 				},
 			},
+			"ca_certificate": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+
+			"insecure": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
 		},
 	}
 }
@@ -66,9 +78,32 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
 	timeout := d.Get("timeout").(int)
+	caCert := d.Get("ca_certificate").(string)
+
+	// Get the System Cert Pool
+	caCertPool, err := x509.SystemCertPool()
+	if err != nil {
+		return append(diags, diag.Errorf("Error tls: %s", err)...)
+	}
+
+	// Use `ca_certificate` cert pool
+	if caCert != "" {
+		caCertPool = x509.NewCertPool()
+		if ok := caCertPool.AppendCertsFromPEM([]byte(caCert)); !ok {
+			return append(diags, diag.Errorf("Error tls: Can't add the CA certificate to certificate pool")...)
+		}
+	}
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			RootCAs:            caCertPool,
+			InsecureSkipVerify: d.Get("insecure").(bool),
+		},
+	}
 
 	client := &http.Client{
-		Timeout: time.Duration(timeout) * time.Second, // defaults to 0
+		Transport: tr,
+		Timeout:   time.Duration(timeout) * time.Second, // defaults to 0
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
