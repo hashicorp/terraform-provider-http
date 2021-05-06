@@ -1,3 +1,7 @@
+# Disclaimer
+
+This project is a fork of upstream terraform-provider-http project, which is not taking time to review the [PR](https://github.com/hashicorp/terraform-provider-http/pull/29) as of writing of this. This project does not replace that nor we intend to maintain it outside of any future need for internal terraform-aws-eks related improvements and/or bug fixes. Please refere to the main project at https://github.com/hashicorp/terraform-provider-http.
+
 Terraform Provider
 ==================
 
