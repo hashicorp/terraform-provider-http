@@ -454,6 +454,7 @@ func setUpMockHttpTLSServer() *TestHttpMock {
 
 func httpReqHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Date", "")
 	w.Header().Add("X-Single", "foobar")
 	w.Header().Add("X-Double", "1")
 	w.Header().Add("X-Double", "2")
