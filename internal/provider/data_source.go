@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -33,6 +34,14 @@ func dataSource() *schema.Resource {
 				Optional: true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
+				},
+			},
+
+			"timeout": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeInt,
 				},
 			},
 
@@ -69,6 +78,7 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
 	caCert := d.Get("ca_certificate").(string)
+	timeout := d.Get("timeout").(int)
 
 	// Get the System Cert Pool
 	caCertPool, err := x509.SystemCertPool()
@@ -93,6 +103,7 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 
 	client := &http.Client{
 		Transport: tr,
+		Timeout:   time.Duration(timeout) * time.Second, // defaults to 0
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)

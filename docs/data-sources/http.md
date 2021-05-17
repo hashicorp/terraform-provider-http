@@ -46,6 +46,8 @@ The following arguments are supported:
 
 * `insecure` - (Optional) Whether server should be accessed without verifying the TLS certificate. Defaults to false.
 
+* `timeout` - (Optional) Client timeout in seconds
+
 ## Attributes Reference
 
 The following attributes are exported:
