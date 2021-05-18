@@ -95,6 +95,7 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	}
 
 	tr := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{
 			RootCAs:            caCertPool,
 			InsecureSkipVerify: d.Get("insecure").(bool),
