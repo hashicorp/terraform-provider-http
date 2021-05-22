@@ -80,26 +80,21 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	caCert := d.Get("ca_certificate").(string)
 	timeout := d.Get("timeout").(int)
 
-	// Get the System Cert Pool
-	caCertPool, err := x509.SystemCertPool()
-	if err != nil {
-		return append(diags, diag.Errorf("Error tls: %s", err)...)
+	tr := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: d.Get("insecure").(bool),
+		},
 	}
 
 	// Use `ca_certificate` cert pool
 	if caCert != "" {
-		caCertPool = x509.NewCertPool()
+		caCertPool := x509.NewCertPool()
 		if ok := caCertPool.AppendCertsFromPEM([]byte(caCert)); !ok {
 			return append(diags, diag.Errorf("Error tls: Can't add the CA certificate to certificate pool")...)
 		}
-	}
 
-	tr := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config{
-			RootCAs:            caCertPool,
-			InsecureSkipVerify: d.Get("insecure").(bool),
-		},
+		tr.TLSClientConfig.RootCAs = caCertPool
 	}
 
 	client := &http.Client{
