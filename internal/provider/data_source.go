@@ -26,6 +26,15 @@ func dataSource() *schema.Resource {
 				},
 			},
 
+			"method": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Default: "GET",
+			},
+
 			"request_headers": {
 				Type:     schema.TypeMap,
 				Optional: true,
@@ -56,10 +65,11 @@ func dataSource() *schema.Resource {
 func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{}) (diags diag.Diagnostics) {
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
+	method := d.Get("method").(string)
 
 	client := &http.Client{}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return append(diags, diag.Errorf("Error creating request: %s", err)...)
 	}
