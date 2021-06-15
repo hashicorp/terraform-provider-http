@@ -2,6 +2,7 @@ package provider
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -128,6 +129,50 @@ func TestDataSource_withHeaders200(t *testing.T) {
 					if outputs["body"].Value != "1.0.0" {
 						return fmt.Errorf(
 							`'body' output is %s; want '1.0.0'`,
+							outputs["body"].Value,
+						)
+					}
+
+					return nil
+				},
+			},
+		},
+	})
+}
+
+const testDataSourceConfig_post = `
+data "http" "http_test" {
+  url = "%s/post_%d.txt"
+  method = "POST"
+  request_body = "test_data"
+}
+
+output "body" {
+  value = "${data.http.http_test.body}"
+}
+`
+
+func TestDataSource_post(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		Providers: testProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testDataSourceConfig_post, testHttpMock.server.URL, 200),
+				Check: func(s *terraform.State) error {
+					_, ok := s.RootModule().Resources["data.http.http_test"]
+					if !ok {
+						return fmt.Errorf("missing data resource")
+					}
+
+					outputs := s.RootModule().Outputs
+
+					if outputs["body"].Value != "test_data" {
+						return fmt.Errorf(
+							`'body' output is %s; want 'test_data'`,
 							outputs["body"].Value,
 						)
 					}
@@ -287,6 +332,19 @@ func setUpMockHttpServer() *TestHttpMock {
 				w.Write([]byte("pem"))
 			} else if r.URL.Path == "/meta_404.txt" {
 				w.WriteHeader(http.StatusNotFound)
+			} else if r.URL.Path == "/post_200.txt" && r.Method == "POST" {
+				body_bytes, err := io.ReadAll(r.Body)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+				} else {
+					body := string(body_bytes)
+					if body == "test_data" {
+						w.WriteHeader(http.StatusOK)
+						w.Write(body_bytes)
+					} else {
+						w.WriteHeader(http.StatusNotAcceptable)
+					}
+				}
 			} else {
 				w.WriteHeader(http.StatusNotFound)
 			}
