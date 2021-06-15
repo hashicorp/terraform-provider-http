@@ -44,6 +44,8 @@ The following arguments are supported:
 
 * `method` - (Optional) Method name. Default value is `GET`.
 
+* `request_body` - (Optional) Request body to send. Default is none.
+
 ## Attributes Reference
 
 The following attributes are exported:
