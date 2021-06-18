@@ -42,6 +42,9 @@ The following arguments are supported:
 * `request_headers` - (Optional) A map of strings representing additional HTTP
   headers to include in the request.
 
+* `skip_tls_verify` - (Optional) Disable verification of TLS certificates.
+  Default is false.
+
 ## Attributes Reference
 
 The following attributes are exported:
