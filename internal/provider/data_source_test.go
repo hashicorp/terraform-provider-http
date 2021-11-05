@@ -255,6 +255,51 @@ func TestDataSource_utf16(t *testing.T) {
 // 	})
 // }
 
+const testDataSourceConfig_xml = `
+data "http" "http_test" {
+  url = "%s/meta_%d.xml"
+
+  request_headers = {
+    Accept = "application/xml"
+  }
+}
+
+output "body" {
+  value = data.http.http_test.body
+}
+`
+
+func TestDataSource_xml(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		Providers: testProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testDataSourceConfig_xml, testHttpMock.server.URL, 200),
+				Check: func(s *terraform.State) error {
+					_, ok := s.RootModule().Resources["data.http.http_test"]
+					if !ok {
+						return fmt.Errorf("missing data resource")
+					}
+
+					outputs := s.RootModule().Outputs
+
+					if outputs["body"].Value != "<?xml version=\"1.0\"?><test></test>" {
+						return fmt.Errorf(
+							`'body' output is %s; want '<?xml version="1.0"?><test></test>'`,
+							outputs["body"].Value,
+						)
+					}
+					return nil
+				},
+			},
+		},
+	})
+}
+
 func setUpMockHttpServer() *TestHttpMock {
 	Server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -287,6 +332,10 @@ func setUpMockHttpServer() *TestHttpMock {
 				w.Write([]byte("pem"))
 			} else if r.URL.Path == "/meta_404.txt" {
 				w.WriteHeader(http.StatusNotFound)
+			} else if r.URL.Path == "/meta_200.xml" {
+				w.Header().Set("Content-Type", "application/xml")
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte("<?xml version=\"1.0\"?><test></test>"))
 			} else {
 				w.WriteHeader(http.StatusNotFound)
 			}
