@@ -2,12 +2,15 @@ package provider
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"mime"
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -34,6 +37,14 @@ func dataSource() *schema.Resource {
 				},
 			},
 
+			"timeout": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeInt,
+				},
+			},
+
 			"body": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -49,6 +60,16 @@ func dataSource() *schema.Resource {
 					Type: schema.TypeString,
 				},
 			},
+			"ca_certificate": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+
+			"insecure": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
 		},
 	}
 }
@@ -56,8 +77,30 @@ func dataSource() *schema.Resource {
 func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{}) (diags diag.Diagnostics) {
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
+	caCert := d.Get("ca_certificate").(string)
+	timeout := d.Get("timeout").(int)
 
-	client := &http.Client{}
+	tr := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: d.Get("insecure").(bool),
+		},
+	}
+
+	// Use `ca_certificate` cert pool
+	if caCert != "" {
+		caCertPool := x509.NewCertPool()
+		if ok := caCertPool.AppendCertsFromPEM([]byte(caCert)); !ok {
+			return append(diags, diag.Errorf("Error tls: Can't add the CA certificate to certificate pool")...)
+		}
+
+		tr.TLSClientConfig.RootCAs = caCertPool
+	}
+
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   time.Duration(timeout) * time.Second, // defaults to 0
+	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
