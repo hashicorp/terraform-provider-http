@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestDataSource_http200(t *testing.T) {
@@ -45,6 +46,107 @@ func TestDataSource_http404(t *testing.T) {
 		},
 	})
 }
+
+const testDataSourceConfig_allowErrorsFallback = `
+data "http" "http_test" {
+  url = "%s/meta_%d.txt"
+  allowed_errors = toset([%[2]d])
+  error_response = "fallback"
+}
+
+output "body" {
+  value = data.http.http_test.body
+}
+`
+
+func TestDataSource_fallback404(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProviderFactories: testProviders(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testDataSourceConfig_allowErrorsFallback, testHttpMock.server.URL, 404),
+				Check: func(s *terraform.State) error {
+					_, ok := s.RootModule().Resources["data.http.http_test"]
+					if !ok {
+						return fmt.Errorf("missing data resource")
+					}
+
+					outputs := s.RootModule().Outputs
+
+					if outputs["body"].Value != "fallback" {
+						return fmt.Errorf(
+							`'body' output is %s; want 'fallback'`,
+							outputs["body"].Value,
+						)
+					}
+
+					return nil
+				},
+			},
+		},
+	})
+}
+
+const testDataSourceConfig_allowErrors = `
+data "http" "http_test" {
+  url = "%s/meta_%d.txt"
+  allowed_errors = toset([%[2]d])
+}
+
+output "body" {
+  value = data.http.http_test.body
+}
+`
+
+func TestDataSource_allow404(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProviderFactories: testProviders(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testDataSourceConfig_allowErrors, testHttpMock.server.URL, 404),
+				Check: func(s *terraform.State) error {
+					_, ok := s.RootModule().Resources["data.http.http_test"]
+					if !ok {
+						return fmt.Errorf("missing data resource")
+					}
+
+					outputs := s.RootModule().Outputs
+
+					if outputs["body"].Value != "" {
+						return fmt.Errorf(
+							`'body' output is %s; want ''`,
+							outputs["body"].Value,
+						)
+					}
+
+					return nil
+				},
+			},
+		},
+	})
+}
+
+const testDataSourceConfig_withHeaders = `
+data "http" "http_test" {
+  url = "%s/restricted/meta_%d.txt"
+
+  request_headers = {
+    "Authorization" = "Zm9vOmJhcg=="
+  }
+}
+
+output "body" {
+  value = data.http.http_test.body
+}
+`
 
 func TestDataSource_withHeaders200(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()

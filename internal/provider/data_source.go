@@ -49,6 +49,24 @@ your control should be treated as untrustworthy.`,
 				},
 			},
 
+			"allowed_errors": {
+				Description: "A set of integers representing non-200 HTTP status codes that are acceptable responses.",
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Elem: &schema.Schema{
+					Type: schema.TypeInt,
+				},
+			},
+
+			"error_response": {
+				Description: "A fallback response value to use as `body` if the response status is a code specified in `allowed_errors`. If not defined, the actual response body is still returned.",
+				Type:        schema.TypeString,
+				Optional:    true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+			},
+
 			"body": {
 				Description: "The response body returned as a string.",
 				Type:        schema.TypeString,
@@ -74,6 +92,8 @@ your control should be treated as untrustworthy.`,
 func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{}) (diags diag.Diagnostics) {
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
+	allowedErrors := d.Get("allowed_errors").(*schema.Set)
+	errorResponse, customError := d.GetOk("error_response")
 
 	client := &http.Client{}
 
@@ -93,7 +113,8 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != 200 {
+	errorAcceptable := allowedErrors.Contains(resp.StatusCode)
+	if resp.StatusCode != 200 && !errorAcceptable {
 		return append(diags, diag.Errorf("HTTP request error. Response code: %d", resp.StatusCode)...)
 	}
 
@@ -106,9 +127,13 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 		})
 	}
 
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return append(diags, diag.FromErr(err)...)
+	if errorAcceptable && customError {
+		d.Set("body", errorResponse)
+	} else {
+		bytes, err := ioutil.ReadAll(resp.Body)
+		if err = d.Set("body", string(bytes)); err != nil {
+			return append(diags, diag.Errorf("Error setting HTTP response body: %s", err)...)
+		}
 	}
 
 	responseHeaders := make(map[string]string)
@@ -116,10 +141,6 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 		// Concatenate according to RFC2616
 		// cf. https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
 		responseHeaders[k] = strings.Join(v, ", ")
-	}
-
-	if err = d.Set("body", string(bytes)); err != nil {
-		return append(diags, diag.Errorf("Error setting HTTP response body: %s", err)...)
 	}
 
 	if err = d.Set("response_headers", responseHeaders); err != nil {
