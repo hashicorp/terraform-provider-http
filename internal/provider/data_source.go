@@ -76,7 +76,7 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return append(diags, diag.Errorf("HTTP request error. Response code: %d", resp.StatusCode)...)
+		return append(diags, diag.Errorf("HTTP request error. Response code: %d, URL: %s", resp.StatusCode, url)...)
 	}
 
 	contentType := resp.Header.Get("Content-Type")

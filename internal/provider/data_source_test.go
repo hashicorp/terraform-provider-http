@@ -87,7 +87,7 @@ func TestDataSource_http404(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      fmt.Sprintf(testDataSourceConfig_basic, testHttpMock.server.URL, 404),
-				ExpectError: regexp.MustCompile("HTTP request error. Response code: 404"),
+				ExpectError: regexp.MustCompile("HTTP request error. Response code: 404, URL: http://.*"),
 			},
 		},
 	})
