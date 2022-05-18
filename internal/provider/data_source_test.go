@@ -11,67 +11,19 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-type TestHttpMock struct {
-	server *httptest.Server
-}
-
-const testDataSourceConfig_basic = `
-data "http" "http_test" {
-  url = "%s/meta_%d.txt"
-}
-
-output "body" {
-  value = data.http.http_test.body
-}
-
-output "response_headers" {
-  value = data.http.http_test.response_headers
-}
-`
-
 func TestDataSource_http200(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
 
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		Providers: testProviders,
+		ProviderFactories: testProviders(),
 		Steps: []resource.TestStep{
 			{
-				Config: fmt.Sprintf(testDataSourceConfig_basic, testHttpMock.server.URL, 200),
-				Check: func(s *terraform.State) error {
-					_, ok := s.RootModule().Resources["data.http.http_test"]
-					if !ok {
-						return fmt.Errorf("missing data resource")
-					}
-
-					outputs := s.RootModule().Outputs
-
-					if outputs["body"].Value != "1.0.0" {
-						return fmt.Errorf(
-							`'body' output is %s; want '1.0.0'`,
-							outputs["body"].Value,
-						)
-					}
-
-					response_headers := outputs["response_headers"].Value.(map[string]interface{})
-
-					if response_headers["X-Single"].(string) != "foobar" {
-						return fmt.Errorf(
-							`'X-Single' response header is %s; want 'foobar'`,
-							response_headers["X-Single"].(string),
-						)
-					}
-
-					if response_headers["X-Double"].(string) != "1, 2" {
-						return fmt.Errorf(
-							`'X-Double' response header is %s; want '1, 2'`,
-							response_headers["X-Double"].(string),
-						)
-					}
-
-					return nil
-				},
+				Config: fmt.Sprintf(testDataSourceConfigBasic, testHttpMock.server.URL, 200),
+				Check: resource.ComposeTestCheckFunc(
+					testAccDataSourceBasic("data.http.http_test"),
+				),
 			},
 		},
 	})
@@ -83,29 +35,15 @@ func TestDataSource_http404(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		Providers: testProviders,
+		ProviderFactories: testProviders(),
 		Steps: []resource.TestStep{
 			{
-				Config:      fmt.Sprintf(testDataSourceConfig_basic, testHttpMock.server.URL, 404),
+				Config:      fmt.Sprintf(testDataSourceConfigBasic, testHttpMock.server.URL, 404),
 				ExpectError: regexp.MustCompile("HTTP request error. Response code: 404"),
 			},
 		},
 	})
 }
-
-const testDataSourceConfig_withHeaders = `
-data "http" "http_test" {
-  url = "%s/restricted/meta_%d.txt"
-
-  request_headers = {
-    "Authorization" = "Zm9vOmJhcg=="
-  }
-}
-
-output "body" {
-  value = data.http.http_test.body
-}
-`
 
 func TestDataSource_withHeaders200(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
@@ -113,41 +51,17 @@ func TestDataSource_withHeaders200(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		Providers: testProviders,
+		ProviderFactories: testProviders(),
 		Steps: []resource.TestStep{
 			{
-				Config: fmt.Sprintf(testDataSourceConfig_withHeaders, testHttpMock.server.URL, 200),
-				Check: func(s *terraform.State) error {
-					_, ok := s.RootModule().Resources["data.http.http_test"]
-					if !ok {
-						return fmt.Errorf("missing data resource")
-					}
-
-					outputs := s.RootModule().Outputs
-
-					if outputs["body"].Value != "1.0.0" {
-						return fmt.Errorf(
-							`'body' output is %s; want '1.0.0'`,
-							outputs["body"].Value,
-						)
-					}
-
-					return nil
-				},
+				Config: fmt.Sprintf(testDataSourceConfigWithHeaders, testHttpMock.server.URL, 200),
+				Check: resource.ComposeTestCheckFunc(
+					testAccDataSourceHeaders("data.http.http_test"),
+				),
 			},
 		},
 	})
 }
-
-const testDataSourceConfig_utf8 = `
-data "http" "http_test" {
-  url = "%s/utf-8/meta_%d.txt"
-}
-
-output "body" {
-  value = "${data.http.http_test.body}"
-}
-`
 
 func TestDataSource_utf8(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
@@ -155,41 +69,17 @@ func TestDataSource_utf8(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		Providers: testProviders,
+		ProviderFactories: testProviders(),
 		Steps: []resource.TestStep{
 			{
-				Config: fmt.Sprintf(testDataSourceConfig_utf8, testHttpMock.server.URL, 200),
-				Check: func(s *terraform.State) error {
-					_, ok := s.RootModule().Resources["data.http.http_test"]
-					if !ok {
-						return fmt.Errorf("missing data resource")
-					}
-
-					outputs := s.RootModule().Outputs
-
-					if outputs["body"].Value != "1.0.0" {
-						return fmt.Errorf(
-							`'body' output is %s; want '1.0.0'`,
-							outputs["body"].Value,
-						)
-					}
-
-					return nil
-				},
+				Config: fmt.Sprintf(testDataSourceConfigUTF8, testHttpMock.server.URL, 200),
+				Check: resource.ComposeTestCheckFunc(
+					testAccDataSourceUTF8("data.http.http_test"),
+				),
 			},
 		},
 	})
 }
-
-const testDataSourceConfig_utf16 = `
-data "http" "http_test" {
-  url = "%s/utf-16/meta_%d.txt"
-}
-
-output "body" {
-  value = "${data.http.http_test.body}"
-}
-`
 
 func TestDataSource_utf16(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
@@ -197,10 +87,10 @@ func TestDataSource_utf16(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		Providers: testProviders,
+		ProviderFactories: testProviders(),
 		Steps: []resource.TestStep{
 			{
-				Config: fmt.Sprintf(testDataSourceConfig_utf16, testHttpMock.server.URL, 200),
+				Config: fmt.Sprintf(testDataSourceConfigUTF16, testHttpMock.server.URL, 200),
 				// This should now be a warning, but unsure how to test for it...
 				//ExpectWarning: regexp.MustCompile("Content-Type is not a text type. Got: application/json; charset=UTF-16"),
 			},
@@ -255,6 +145,58 @@ func TestDataSource_utf16(t *testing.T) {
 // 	})
 // }
 
+const testDataSourceConfigBasic = `
+data "http" "http_test" {
+  url = "%s/meta_%d.txt"
+}
+
+output "body" {
+  value = data.http.http_test.body
+}
+
+output "response_headers" {
+  value = data.http.http_test.response_headers
+}
+`
+
+const testDataSourceConfigWithHeaders = `
+data "http" "http_test" {
+  url = "%s/restricted/meta_%d.txt"
+
+  request_headers = {
+    "Authorization" = "Zm9vOmJhcg=="
+  }
+}
+
+output "body" {
+  value = data.http.http_test.body
+}
+`
+
+const testDataSourceConfigUTF8 = `
+data "http" "http_test" {
+  url = "%s/utf-8/meta_%d.txt"
+}
+
+output "body" {
+  value = "${data.http.http_test.body}"
+}
+`
+
+const testDataSourceConfigUTF16 = `
+data "http" "http_test" {
+  url = "%s/utf-16/meta_%d.txt"
+}
+
+output "body" {
+  value = "${data.http.http_test.body}"
+}
+`
+
+type TestHttpMock struct {
+	server *httptest.Server
+}
+
 func setUpMockHttpServer() *TestHttpMock {
 	Server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -295,5 +237,81 @@ func setUpMockHttpServer() *TestHttpMock {
 
 	return &TestHttpMock{
 		server: Server,
+	}
+}
+
+func testAccDataSourceBasic(id string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		_, ok := s.RootModule().Resources[id]
+		if !ok {
+			return fmt.Errorf("missing data resource")
+		}
+
+		outputs := s.RootModule().Outputs
+
+		if outputs["body"].Value != "1.0.0" {
+			return fmt.Errorf(
+				`'body' output is %s; want '1.0.0'`,
+				outputs["body"].Value,
+			)
+		}
+
+		responseHeaders := outputs["response_headers"].Value.(map[string]interface{})
+
+		if responseHeaders["X-Single"].(string) != "foobar" {
+			return fmt.Errorf(
+				`'X-Single' response header is %s; want 'foobar'`,
+				responseHeaders["X-Single"].(string),
+			)
+		}
+
+		if responseHeaders["X-Double"].(string) != "1, 2" {
+			return fmt.Errorf(
+				`'X-Double' response header is %s; want '1, 2'`,
+				responseHeaders["X-Double"].(string),
+			)
+		}
+
+		return nil
+	}
+}
+
+func testAccDataSourceHeaders(id string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		_, ok := s.RootModule().Resources[id]
+		if !ok {
+			return fmt.Errorf("missing data resource")
+		}
+
+		outputs := s.RootModule().Outputs
+
+		if outputs["body"].Value != "1.0.0" {
+			return fmt.Errorf(
+				`'body' output is %s; want '1.0.0'`,
+				outputs["body"].Value,
+			)
+		}
+
+		return nil
+	}
+}
+
+func testAccDataSourceUTF8(id string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		_, ok := s.RootModule().Resources[id]
+		if !ok {
+			return fmt.Errorf("missing data resource")
+		}
+
+		outputs := s.RootModule().Outputs
+
+		if outputs["body"].Value != "1.0.0" {
+			return fmt.Errorf(
+				`'body' output is %s; want '1.0.0'`,
+				outputs["body"].Value,
+			)
+		}
+
+		return nil
 	}
 }

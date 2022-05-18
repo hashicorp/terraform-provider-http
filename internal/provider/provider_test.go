@@ -6,8 +6,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-var testProviders = map[string]*schema.Provider{
-	"http": New(),
+func testProviders() map[string]func() (*schema.Provider, error) {
+	return map[string]func() (*schema.Provider, error){
+		"http": func() (*schema.Provider, error) { return New(), nil },
+	}
 }
 
 func TestProvider(t *testing.T) {
