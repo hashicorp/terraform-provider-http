@@ -80,7 +80,7 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	}
 
 	contentType := resp.Header.Get("Content-Type")
-	if contentType == "" || isContentTypeText(contentType) == false {
+	if !isContentTypeText(contentType) {
 		diags = append(diags, diag.Diagnostic{
 			Severity: diag.Warning,
 			Summary:  fmt.Sprintf("Content-Type is not recognized as a text type, got %q", contentType),
@@ -100,7 +100,10 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 		responseHeaders[k] = strings.Join(v, ", ")
 	}
 
-	d.Set("body", string(bytes))
+	if err = d.Set("body", string(bytes)); err != nil {
+		return append(diags, diag.Errorf("Error setting HTTP response body: %s", err)...)
+	}
+
 	if err = d.Set("response_headers", responseHeaders); err != nil {
 		return append(diags, diag.Errorf("Error setting HTTP response headers: %s", err)...)
 	}
@@ -124,7 +127,7 @@ func isContentTypeText(contentType string) bool {
 	allowedContentTypes := []*regexp.Regexp{
 		regexp.MustCompile("^text/.+"),
 		regexp.MustCompile("^application/json$"),
-		regexp.MustCompile("^application/samlmetadata\\+xml"),
+		regexp.MustCompile(`^application/samlmetadata\+xml`),
 	}
 
 	for _, r := range allowedContentTypes {

@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
+//nolint:unparam // error is always nil
 func testProviders() map[string]func() (*schema.Provider, error) {
 	return map[string]func() (*schema.Provider, error){
 		"http": func() (*schema.Provider, error) { return New(), nil },

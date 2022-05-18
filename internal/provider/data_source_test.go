@@ -207,26 +207,26 @@ func setUpMockHttpServer() *TestHttpMock {
 			w.Header().Add("X-Double", "2")
 			if r.URL.Path == "/meta_200.txt" {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("1.0.0"))
+				_, _ = w.Write([]byte("1.0.0"))
 			} else if r.URL.Path == "/restricted/meta_200.txt" {
 				if r.Header.Get("Authorization") == "Zm9vOmJhcg==" {
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte("1.0.0"))
+					_, _ = w.Write([]byte("1.0.0"))
 				} else {
 					w.WriteHeader(http.StatusForbidden)
 				}
 			} else if r.URL.Path == "/utf-8/meta_200.txt" {
 				w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("1.0.0"))
+				_, _ = w.Write([]byte("1.0.0"))
 			} else if r.URL.Path == "/utf-16/meta_200.txt" {
 				w.Header().Set("Content-Type", "application/json; charset=UTF-16")
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("\"1.0.0\""))
+				_, _ = w.Write([]byte("\"1.0.0\""))
 			} else if r.URL.Path == "/x509/cert.pem" {
 				w.Header().Set("Content-Type", "application/x-x509-ca-cert")
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("pem"))
+				_, _ = w.Write([]byte("pem"))
 			} else if r.URL.Path == "/meta_404.txt" {
 				w.WriteHeader(http.StatusNotFound)
 			} else {
