@@ -60,6 +60,6 @@ data "http" "example" {
 
 - `body` (String) The response body returned as a string.
 - `id` (String) The ID of this resource.
-- `response_headers` (Map of String) A map of response header field names and values.
+- `response_headers` (Map of String) A map of response header field names and values. Duplicate headers are concatenated with according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).
 
 
