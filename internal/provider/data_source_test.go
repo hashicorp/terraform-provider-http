@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestDataSource_http200(t *testing.T) {
@@ -22,7 +21,9 @@ func TestDataSource_http200(t *testing.T) {
 			{
 				Config: fmt.Sprintf(testDataSourceConfigBasic, testHttpMock.server.URL, 200),
 				Check: resource.ComposeTestCheckFunc(
-					testAccDataSourceBasic("data.http.http_test"),
+					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
 				),
 			},
 		},
@@ -56,7 +57,7 @@ func TestDataSource_withHeaders200(t *testing.T) {
 			{
 				Config: fmt.Sprintf(testDataSourceConfigWithHeaders, testHttpMock.server.URL, 200),
 				Check: resource.ComposeTestCheckFunc(
-					testAccDataSourceHeaders("data.http.http_test"),
+					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
 				),
 			},
 		},
@@ -74,7 +75,7 @@ func TestDataSource_utf8(t *testing.T) {
 			{
 				Config: fmt.Sprintf(testDataSourceConfigUTF8, testHttpMock.server.URL, 200),
 				Check: resource.ComposeTestCheckFunc(
-					testAccDataSourceUTF8("data.http.http_test"),
+					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
 				),
 			},
 		},
@@ -149,14 +150,6 @@ const testDataSourceConfigBasic = `
 data "http" "http_test" {
   url = "%s/meta_%d.txt"
 }
-
-output "body" {
-  value = data.http.http_test.body
-}
-
-output "response_headers" {
-  value = data.http.http_test.response_headers
-}
 `
 
 const testDataSourceConfigWithHeaders = `
@@ -167,29 +160,17 @@ data "http" "http_test" {
     "Authorization" = "Zm9vOmJhcg=="
   }
 }
-
-output "body" {
-  value = data.http.http_test.body
-}
 `
 
 const testDataSourceConfigUTF8 = `
 data "http" "http_test" {
   url = "%s/utf-8/meta_%d.txt"
 }
-
-output "body" {
-  value = "${data.http.http_test.body}"
-}
 `
 
 const testDataSourceConfigUTF16 = `
 data "http" "http_test" {
   url = "%s/utf-16/meta_%d.txt"
-}
-
-output "body" {
-  value = "${data.http.http_test.body}"
 }
 `
 
@@ -237,81 +218,5 @@ func setUpMockHttpServer() *TestHttpMock {
 
 	return &TestHttpMock{
 		server: Server,
-	}
-}
-
-func testAccDataSourceBasic(id string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		_, ok := s.RootModule().Resources[id]
-		if !ok {
-			return fmt.Errorf("missing data resource")
-		}
-
-		outputs := s.RootModule().Outputs
-
-		if outputs["body"].Value != "1.0.0" {
-			return fmt.Errorf(
-				`'body' output is %s; want '1.0.0'`,
-				outputs["body"].Value,
-			)
-		}
-
-		responseHeaders := outputs["response_headers"].Value.(map[string]interface{})
-
-		if responseHeaders["X-Single"].(string) != "foobar" {
-			return fmt.Errorf(
-				`'X-Single' response header is %s; want 'foobar'`,
-				responseHeaders["X-Single"].(string),
-			)
-		}
-
-		if responseHeaders["X-Double"].(string) != "1, 2" {
-			return fmt.Errorf(
-				`'X-Double' response header is %s; want '1, 2'`,
-				responseHeaders["X-Double"].(string),
-			)
-		}
-
-		return nil
-	}
-}
-
-func testAccDataSourceHeaders(id string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		_, ok := s.RootModule().Resources[id]
-		if !ok {
-			return fmt.Errorf("missing data resource")
-		}
-
-		outputs := s.RootModule().Outputs
-
-		if outputs["body"].Value != "1.0.0" {
-			return fmt.Errorf(
-				`'body' output is %s; want '1.0.0'`,
-				outputs["body"].Value,
-			)
-		}
-
-		return nil
-	}
-}
-
-func testAccDataSourceUTF8(id string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		_, ok := s.RootModule().Resources[id]
-		if !ok {
-			return fmt.Errorf("missing data resource")
-		}
-
-		outputs := s.RootModule().Outputs
-
-		if outputs["body"].Value != "1.0.0" {
-			return fmt.Errorf(
-				`'body' output is %s; want '1.0.0'`,
-				outputs["body"].Value,
-			)
-		}
-
-		return nil
 	}
 }
