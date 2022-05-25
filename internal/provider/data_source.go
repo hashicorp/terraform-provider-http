@@ -15,34 +15,52 @@ import (
 
 func dataSource() *schema.Resource {
 	return &schema.Resource{
+		Description: `
+The ` + "`http`" + ` data source makes an HTTP GET request to the given URL and exports
+information about the response.
+
+The given URL may be either an ` + "`http`" + ` or ` + "`https`" + ` URL. At present this resource
+can only retrieve data from URLs that respond with ` + "`text/*`" + ` or
+` + "`application/json`" + ` content types, and expects the result to be UTF-8 encoded
+regardless of the returned content type header.
+
+~> **Important** Although ` + "`https`" + ` URLs can be used, there is currently no
+mechanism to authenticate the remote server except for general verification of
+the server certificate's chain of trust. Data retrieved from servers not under
+your control should be treated as untrustworthy.`,
 		ReadContext: dataSourceRead,
 
 		Schema: map[string]*schema.Schema{
 			"url": {
-				Type:     schema.TypeString,
-				Required: true,
+				Description: "The URL for the request. Supported schemes are `http` and `https`.",
+				Type:        schema.TypeString,
+				Required:    true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
 			},
 
 			"request_headers": {
-				Type:     schema.TypeMap,
-				Optional: true,
+				Description: "A map of request header field names and values.",
+				Type:        schema.TypeMap,
+				Optional:    true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
 			},
 
 			"body": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Description: "The response body returned as a string.",
+				Type:        schema.TypeString,
+				Computed:    true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
 			},
 
 			"response_headers": {
+				Description: `A map of response header field names and values.` +
+					` Duplicate headers are concatenated with according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
 				Type:     schema.TypeMap,
 				Computed: true,
 				Elem: &schema.Schema{
@@ -80,7 +98,7 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	}
 
 	contentType := resp.Header.Get("Content-Type")
-	if contentType == "" || isContentTypeText(contentType) == false {
+	if !isContentTypeText(contentType) {
 		diags = append(diags, diag.Diagnostic{
 			Severity: diag.Warning,
 			Summary:  fmt.Sprintf("Content-Type is not recognized as a text type, got %q", contentType),
@@ -100,7 +118,10 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 		responseHeaders[k] = strings.Join(v, ", ")
 	}
 
-	d.Set("body", string(bytes))
+	if err = d.Set("body", string(bytes)); err != nil {
+		return append(diags, diag.Errorf("Error setting HTTP response body: %s", err)...)
+	}
+
 	if err = d.Set("response_headers", responseHeaders); err != nil {
 		return append(diags, diag.Errorf("Error setting HTTP response headers: %s", err)...)
 	}
@@ -124,7 +145,7 @@ func isContentTypeText(contentType string) bool {
 	allowedContentTypes := []*regexp.Regexp{
 		regexp.MustCompile("^text/.+"),
 		regexp.MustCompile("^application/json$"),
-		regexp.MustCompile("^application/samlmetadata\\+xml"),
+		regexp.MustCompile(`^application/samlmetadata\+xml`),
 	}
 
 	for _, r := range allowedContentTypes {
