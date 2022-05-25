@@ -16,12 +16,13 @@ HTTP URLs and either [HTTP/1.1](https://datatracker.ietf.org/doc/html/rfc2616) o
 [HTTP/2.0](https://datatracker.ietf.org/doc/html/rfc7540). Non-standard protocols (e.g., 
 [SPDY](https://tools.ietf.org/id/draft-ietf-httpbis-http2-00.html), 
 [QUIC](https://datatracker.ietf.org/doc/html/draft-ietf-quic-transport-34)) are not supported.
-* Support usage of requests to URLs directed to either `http` or `https`. The current version of this provider is built
-with [Go 1.17](https://go.dev/doc/go1.17) which [supports](https://go.dev/doc/go1.17#minor_library_changes) 
+* Support usage of either `http` (plaintext) or `https` (secure) requests. The current version of this provider is 
+built with [Go 1.17](https://go.dev/doc/go1.17) which [supports](https://go.dev/doc/go1.17#minor_library_changes) 
 [TLS/1.0](https://www.ietf.org/rfc/rfc2246.txt) ([deprecated](https://datatracker.ietf.org/doc/rfc8996/)), 
 [TLS/1.1](https://datatracker.ietf.org/doc/html/rfc4346) ([deprecated](https://datatracker.ietf.org/doc/rfc8996/)), 
 [TLS/1.2](https://datatracker.ietf.org/doc/html/rfc5246) and 
-[TLS/1.3](https://datatracker.ietf.org/doc/html/rfc8446) (supported since [Go 1.13](https://go.dev/doc/go1.13#tls_1_3)). 
+[TLS/1.3](https://datatracker.ietf.org/doc/html/rfc8446). TLS support will track the version of Go that the provider
+is built with and will likely change over time.
 * Support the supplying of request headers.
 * Expose response headers returned from request.
 * Expose response body as string where applicable.
