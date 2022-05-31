@@ -54,8 +54,8 @@ data "http" "example" {
 
 ### Optional
 
-- `allowed_errors` (Set of Number) A set of integers representing non-200 HTTP status codes that are acceptable responses.
-- `error_response` (String) A fallback response value to use as `body` if the response status is a code specified in `allowed_errors`. If not defined, the actual response body is still returned.
+- `fallback_on_status` (Set of Number) A set of integers representing HTTP status codes that are acceptable responses, and may substitute the `fallback_response` if received.
+- `fallback_response` (String) A fallback response value to use as `body` if the response status is a code specified in `fallback_on_status`. If not defined, the actual response body is still returned.
 - `request_headers` (Map of String) A map of request header field names and values.
 
 ### Read-Only

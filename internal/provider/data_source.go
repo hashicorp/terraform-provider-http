@@ -49,8 +49,8 @@ your control should be treated as untrustworthy.`,
 				},
 			},
 
-			"allowed_errors": {
-				Description: "A set of integers representing non-200 HTTP status codes that are acceptable responses.",
+			"fallback_on_status": {
+				Description: "A set of integers representing HTTP status codes that are acceptable responses, and may substitute the `fallback_response` if received.",
 				Type:        schema.TypeSet,
 				Optional:    true,
 				Elem: &schema.Schema{
@@ -58,8 +58,8 @@ your control should be treated as untrustworthy.`,
 				},
 			},
 
-			"error_response": {
-				Description: "A fallback response value to use as `body` if the response status is a code specified in `allowed_errors`. If not defined, the actual response body is still returned.",
+			"fallback_response": {
+				Description: "A fallback response value to use as `body` if the response status is a code specified in `fallback_on_status`. If not defined, the actual response body is still returned.",
 				Type:        schema.TypeString,
 				Optional:    true,
 				Elem: &schema.Schema{
@@ -92,8 +92,8 @@ your control should be treated as untrustworthy.`,
 func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{}) (diags diag.Diagnostics) {
 	url := d.Get("url").(string)
 	headers := d.Get("request_headers").(map[string]interface{})
-	allowedErrors := d.Get("allowed_errors").(*schema.Set)
-	errorResponse, customError := d.GetOk("error_response")
+	fallbackStatusCodes := d.Get("fallback_on_status").(*schema.Set)
+	fallbackResponse, useFallback := d.GetOk("fallback_response")
 
 	client := &http.Client{}
 
@@ -113,8 +113,8 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 
 	defer resp.Body.Close()
 
-	errorAcceptable := allowedErrors.Contains(resp.StatusCode)
-	if resp.StatusCode != 200 && !errorAcceptable {
+	statusAcceptable := fallbackStatusCodes.Contains(resp.StatusCode)
+	if resp.StatusCode != 200 && !statusAcceptable {
 		return append(diags, diag.Errorf("HTTP request error. Response code: %d", resp.StatusCode)...)
 	}
 
@@ -127,8 +127,8 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 		})
 	}
 
-	if errorAcceptable && customError {
-		d.Set("body", errorResponse)
+	if statusAcceptable && useFallback {
+		d.Set("body", fallbackResponse)
 	} else {
 		bytes, err := ioutil.ReadAll(resp.Body)
 		if err = d.Set("body", string(bytes)); err != nil {
