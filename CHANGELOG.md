@@ -2,7 +2,7 @@
 
 ENHANCEMENTS:
 
-* data-source/http: `body` is now deprecated and has been superseded by `response_body` ([#137](https://github.com/hashicorp/terraform-provider-http/pull/137)).  
+* data-source/http: `body` is now deprecated and has been superseded by `response_body`. `body` will be removed in the next major release ([#137](https://github.com/hashicorp/terraform-provider-http/pull/137)).  
 
 NOTES:
 
