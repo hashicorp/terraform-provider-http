@@ -50,6 +50,17 @@ your control should be treated as untrustworthy.`,
 			},
 
 			"body": {
+				Description: "The response body returned as a string. " +
+					"**NOTE**: This is deprecated, use `response_body` instead.",
+				Type:     schema.TypeString,
+				Computed: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+				Deprecated: "Use response_body instead",
+			},
+
+			"response_body": {
 				Description: "The response body returned as a string.",
 				Type:        schema.TypeString,
 				Computed:    true,
@@ -119,6 +130,10 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	}
 
 	if err = d.Set("body", string(bytes)); err != nil {
+		return append(diags, diag.Errorf("Error setting HTTP response body: %s", err)...)
+	}
+
+	if err = d.Set("response_body", string(bytes)); err != nil {
 		return append(diags, diag.Errorf("Error setting HTTP response body: %s", err)...)
 	}
 
