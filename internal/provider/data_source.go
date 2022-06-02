@@ -35,9 +35,6 @@ your control should be treated as untrustworthy.`,
 				Description: "The URL for the request. Supported schemes are `http` and `https`.",
 				Type:        schema.TypeString,
 				Required:    true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
 			},
 
 			"request_headers": {
@@ -50,12 +47,17 @@ your control should be treated as untrustworthy.`,
 			},
 
 			"body": {
+				Description: "The response body returned as a string. " +
+					"**NOTE**: This is deprecated, use `response_body` instead.",
+				Type:       schema.TypeString,
+				Computed:   true,
+				Deprecated: "Use response_body instead",
+			},
+
+			"response_body": {
 				Description: "The response body returned as a string.",
 				Type:        schema.TypeString,
 				Computed:    true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
 			},
 
 			"response_headers": {
@@ -119,6 +121,10 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	}
 
 	if err = d.Set("body", string(bytes)); err != nil {
+		return append(diags, diag.Errorf("Error setting HTTP response body: %s", err)...)
+	}
+
+	if err = d.Set("response_body", string(bytes)); err != nil {
 		return append(diags, diag.Errorf("Error setting HTTP response body: %s", err)...)
 	}
 

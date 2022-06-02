@@ -22,6 +22,7 @@ func TestDataSource_http200(t *testing.T) {
 				Config: fmt.Sprintf(testDataSourceConfigBasic, testHttpMock.server.URL, 200),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
 				),
@@ -58,6 +59,7 @@ func TestDataSource_withHeaders200(t *testing.T) {
 				Config: fmt.Sprintf(testDataSourceConfigWithHeaders, testHttpMock.server.URL, 200),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
 				),
 			},
 		},
@@ -76,6 +78,7 @@ func TestDataSource_utf8(t *testing.T) {
 				Config: fmt.Sprintf(testDataSourceConfigUTF8, testHttpMock.server.URL, 200),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
 				),
 			},
 		},

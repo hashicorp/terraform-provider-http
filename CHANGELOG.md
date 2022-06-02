@@ -1,3 +1,13 @@
+## 2.2.0 (June 02, 2022)
+
+ENHANCEMENTS:
+
+* data-source/http: `body` is now deprecated and has been superseded by `response_body`. `body` will be removed in the next major release ([#137](https://github.com/hashicorp/terraform-provider-http/pull/137)).  
+
+NOTES:
+
+* "Uplift" aligned with Utility Providers Upgrade ([#135](https://github.com/hashicorp/terraform-provider-http/issues/135)).
+
 ## 2.1.0 (February 19, 2021)
 
 Binary releases of this provider now include the darwin-arm64 platform. This version contains no further changes.
