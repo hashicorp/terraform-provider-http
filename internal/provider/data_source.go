@@ -35,9 +35,6 @@ your control should be treated as untrustworthy.`,
 				Description: "The URL for the request. Supported schemes are `http` and `https`.",
 				Type:        schema.TypeString,
 				Required:    true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
 			},
 
 			"request_headers": {
@@ -52,11 +49,8 @@ your control should be treated as untrustworthy.`,
 			"body": {
 				Description: "The response body returned as a string. " +
 					"**NOTE**: This is deprecated, use `response_body` instead.",
-				Type:     schema.TypeString,
-				Computed: true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
+				Type:       schema.TypeString,
+				Computed:   true,
 				Deprecated: "Use response_body instead",
 			},
 
@@ -64,9 +58,6 @@ your control should be treated as untrustworthy.`,
 				Description: "The response body returned as a string.",
 				Type:        schema.TypeString,
 				Computed:    true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
 			},
 
 			"response_headers": {
