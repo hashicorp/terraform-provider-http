@@ -69,6 +69,11 @@ your control should be treated as untrustworthy.`,
 					Type: schema.TypeString,
 				},
 			},
+
+			"status_code": {
+				Type:     schema.TypeInt,
+				Computed: true,
+			},
 		},
 	}
 }
@@ -94,10 +99,6 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 	}
 
 	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return append(diags, diag.Errorf("HTTP request error. Response code: %d", resp.StatusCode)...)
-	}
 
 	contentType := resp.Header.Get("Content-Type")
 	if !isContentTypeText(contentType) {
@@ -130,6 +131,10 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 
 	if err = d.Set("response_headers", responseHeaders); err != nil {
 		return append(diags, diag.Errorf("Error setting HTTP response headers: %s", err)...)
+	}
+
+	if err = d.Set("status_code", resp.StatusCode); err != nil {
+		return append(diags, diag.Errorf("Error setting HTTP status code: %s", err)...)
 	}
 
 	// set ID as something more stable than time
