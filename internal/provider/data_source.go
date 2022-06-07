@@ -62,7 +62,7 @@ your control should be treated as untrustworthy.`,
 
 			"response_headers": {
 				Description: `A map of response header field names and values.` +
-					` Duplicate headers are concatenated with according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
+					` Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
 				Type:     schema.TypeMap,
 				Computed: true,
 				Elem: &schema.Schema{
