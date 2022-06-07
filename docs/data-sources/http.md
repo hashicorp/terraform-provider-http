@@ -46,8 +46,8 @@ data "http" "example" {
 
 ## Usage with Postcondition
 
-[Precondition and Postcondition checks](https://www.terraform.io/language/expressions/custom-conditions)
-are available with Terraform v1.2.0 and later.
+[Precondition and Postcondition](https://www.terraform.io/language/expressions/custom-conditions)
+checks are available with Terraform v1.2.0 and later.
 
 ```terraform
 data "http" "example" {
@@ -69,8 +69,8 @@ data "http" "example" {
 
 ## Usage with Precondition
 
-[Precondition and Postcondition checks](https://www.terraform.io/language/expressions/custom-conditions)
-are available with Terraform v1.2.0 and later.
+[Precondition and Postcondition](https://www.terraform.io/language/expressions/custom-conditions)
+checks are available with Terraform v1.2.0 and later.
 
 ```terraform
 data "http" "example" {
@@ -105,8 +105,7 @@ resource "random_uuid" "example" {
 
 ### Read-Only
 
-- `body` (String, Deprecated) The response body returned as a string. **NOTE**: This is deprecated, use `response_body` instead.
 - `id` (String) The ID of this resource.
 - `response_body` (String) The response body returned as a string.
 - `response_headers` (Map of String) A map of response header field names and values. Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).
-- `status_code` (Number)
+- `status_code` (Number) The HTTP response status code.

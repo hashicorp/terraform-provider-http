@@ -46,14 +46,6 @@ your control should be treated as untrustworthy.`,
 				},
 			},
 
-			"body": {
-				Description: "The response body returned as a string. " +
-					"**NOTE**: This is deprecated, use `response_body` instead.",
-				Type:       schema.TypeString,
-				Computed:   true,
-				Deprecated: "Use response_body instead",
-			},
-
 			"response_body": {
 				Description: "The response body returned as a string.",
 				Type:        schema.TypeString,
@@ -71,8 +63,9 @@ your control should be treated as untrustworthy.`,
 			},
 
 			"status_code": {
-				Type:     schema.TypeInt,
-				Computed: true,
+				Description: `The HTTP response status code.`,
+				Type:        schema.TypeInt,
+				Computed:    true,
 			},
 		},
 	}
@@ -119,10 +112,6 @@ func dataSourceRead(ctx context.Context, d *schema.ResourceData, meta interface{
 		// Concatenate according to RFC2616
 		// cf. https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
 		responseHeaders[k] = strings.Join(v, ", ")
-	}
-
-	if err = d.Set("body", string(bytes)); err != nil {
-		return append(diags, diag.Errorf("Error setting HTTP response body: %s", err)...)
 	}
 
 	if err = d.Set("response_body", string(bytes)); err != nil {

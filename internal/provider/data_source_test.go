@@ -23,7 +23,6 @@ data "http" "http_test" {
 	url = "%s/200"
 }`, testHttpMock.server.URL),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
@@ -49,7 +48,6 @@ data "http" "http_test" {
 	url = "%s/404"
 }`, testHttpMock.server.URL),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.http.http_test", "body", ""),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", ""),
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "404"),
 				),
@@ -76,7 +74,6 @@ data "http" "http_test" {
 	}
 }`, testHttpMock.server.URL),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
 				),
@@ -104,7 +101,6 @@ data "http" "http_test" {
 }
 `, testHttpMock.server.URL),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.http.http_test", "body", ""),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", ""),
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "403"),
 				),
@@ -128,7 +124,6 @@ data "http" "http_test" {
 }
 `, testHttpMock.server.URL),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain; charset=UTF-8"),
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
