@@ -3,7 +3,7 @@ module github.com/terraform-providers/terraform-provider-http
 go 1.17
 
 require (
-	github.com/hashicorp/terraform-plugin-docs v0.9.0
+	github.com/hashicorp/terraform-plugin-docs v0.10.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.17.0
 )
 
