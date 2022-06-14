@@ -16,7 +16,7 @@ func TestDataSource_http200(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProviderFactories: testProviders(),
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(testDataSourceConfigBasic, testHttpMock.server.URL, 200),
@@ -37,11 +37,11 @@ func TestDataSource_http404(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProviderFactories: testProviders(),
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config:      fmt.Sprintf(testDataSourceConfigBasic, testHttpMock.server.URL, 404),
-				ExpectError: regexp.MustCompile("HTTP request error. Response code: 404"),
+				ExpectError: regexp.MustCompile("Response code is not 200: 404"),
 			},
 		},
 	})
@@ -53,7 +53,7 @@ func TestDataSource_withHeaders200(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProviderFactories: testProviders(),
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(testDataSourceConfigWithHeaders, testHttpMock.server.URL, 200),
@@ -72,7 +72,7 @@ func TestDataSource_utf8(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProviderFactories: testProviders(),
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(testDataSourceConfigUTF8, testHttpMock.server.URL, 200),
@@ -91,7 +91,7 @@ func TestDataSource_utf16(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProviderFactories: testProviders(),
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(testDataSourceConfigUTF16, testHttpMock.server.URL, 200),

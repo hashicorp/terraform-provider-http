@@ -1,17 +1,32 @@
 package provider
 
 import (
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 )
 
-func New() *schema.Provider {
-	return &schema.Provider{
-		Schema: map[string]*schema.Schema{},
+type provider struct {
+}
 
-		DataSourcesMap: map[string]*schema.Resource{
-			"http": dataSource(),
-		},
+func New() tfsdk.Provider {
+	return &provider{}
+}
 
-		ResourcesMap: map[string]*schema.Resource{},
-	}
+func (p *provider) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
+	return tfsdk.Schema{}, nil
+}
+
+func (p *provider) Configure(_ context.Context, _ tfsdk.ConfigureProviderRequest, _ *tfsdk.ConfigureProviderResponse) {
+}
+
+func (p *provider) GetResources(_ context.Context) (map[string]tfsdk.ResourceType, diag.Diagnostics) {
+	return map[string]tfsdk.ResourceType{}, nil
+}
+
+func (p *provider) GetDataSources(ctx context.Context) (map[string]tfsdk.DataSourceType, diag.Diagnostics) {
+	return map[string]tfsdk.DataSourceType{
+		"http": dataSourceHTTPType{},
+	}, nil
 }
