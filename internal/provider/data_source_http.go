@@ -56,11 +56,17 @@ your control should be treated as untrustworthy.`,
 
 			"response_headers": {
 				Description: `A map of response header field names and values.` +
-					` Duplicate headers are concatenated with according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
+					` Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
 				Type: types.MapType{
 					ElemType: types.StringType,
 				},
 				Computed: true,
+			},
+
+			"status_code": {
+				Description: `The HTTP response status code.`,
+				Type:        types.Int64Type,
+				Computed:    true,
 			},
 
 			"id": {
@@ -88,6 +94,7 @@ type HTTPModel struct {
 	RequestHeaders  types.Map    `tfsdk:"request_headers"`
 	ResponseHeaders types.Map    `tfsdk:"response_headers"`
 	ResponseBody    types.String `tfsdk:"response_body"`
+	StatusCode      types.Int64  `tfsdk:"status_code"`
 }
 
 func (d dataSourceHTTP) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
@@ -134,14 +141,6 @@ func (d dataSourceHTTP) Read(ctx context.Context, req tfsdk.ReadDataSourceReques
 
 	defer response.Body.Close()
 
-	if response.StatusCode != 200 {
-		resp.Diagnostics.AddError(
-			"HTTP response code error",
-			fmt.Sprintf("Response code is not 200: %d", response.StatusCode),
-		)
-		return
-	}
-
 	contentType := response.Header.Get("Content-Type")
 	if !isContentTypeText(contentType) {
 		resp.Diagnostics.AddWarning(
@@ -179,6 +178,7 @@ func (d dataSourceHTTP) Read(ctx context.Context, req tfsdk.ReadDataSourceReques
 	model.ID = types.String{Value: url}
 	model.ResponseHeaders = respHeadersState
 	model.ResponseBody = types.String{Value: responseBody}
+	model.StatusCode = types.Int64{Value: int64(response.StatusCode)}
 
 	diags = resp.State.Set(ctx, model)
 	resp.Diagnostics.Append(diags...)
