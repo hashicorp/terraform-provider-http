@@ -127,6 +127,8 @@ resource "null_resource" "example" {
 
 ### Optional
 
+- `method` (String) The HTTP Method for the request. Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, `GET`, `POST`, `PUT`, `PATCH`, `DELETE` and `HEAD`.
+- `request_body` (String) The request body as a string.
 - `request_headers` (Map of String) A map of request header field names and values.
 
 ### Read-Only

@@ -1,9 +1,14 @@
+## 3.1.0 (unreleased)
+
+ENHANCEMENTS:
+
+* data-source/http: Allow optionally specifying HTTP request method and body ([#21](https://github.com/hashicorp/terraform-provider-http/issues/21)).
+
 ## 3.0.1 (July 27, 2022)
 
 BUG FIXES
 
 * data-source/http: Reinstated previously deprecated and removed `body` attribute ([#166](https://github.com/hashicorp/terraform-provider-http/pull/166)).
-
 
 ## 3.0.0 (July 27, 2022)
 
