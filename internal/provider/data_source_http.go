@@ -48,14 +48,6 @@ your control should be treated as untrustworthy.`,
 				Optional: true,
 			},
 
-			"body": {
-				Description: "The response body returned as a string. " +
-					"**NOTE**: This is deprecated, use `response_body` instead.",
-				Type:               types.StringType,
-				Computed:           true,
-				DeprecationMessage: "**NOTE**: This is deprecated, use `response_body` instead.",
-			},
-
 			"response_body": {
 				Description: "The response body returned as a string.",
 				Type:        types.StringType,
@@ -95,7 +87,6 @@ type HTTPModel struct {
 	URL             types.String `tfsdk:"url"`
 	RequestHeaders  types.Map    `tfsdk:"request_headers"`
 	ResponseHeaders types.Map    `tfsdk:"response_headers"`
-	Body            types.String `tfsdk:"body"`
 	ResponseBody    types.String `tfsdk:"response_body"`
 }
 
@@ -187,7 +178,6 @@ func (d dataSourceHTTP) Read(ctx context.Context, req tfsdk.ReadDataSourceReques
 
 	model.ID = types.String{Value: url}
 	model.ResponseHeaders = respHeadersState
-	model.Body = types.String{Value: responseBody}
 	model.ResponseBody = types.String{Value: responseBody}
 
 	diags = resp.State.Set(ctx, model)

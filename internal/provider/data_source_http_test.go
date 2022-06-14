@@ -21,7 +21,6 @@ func TestDataSource_http200(t *testing.T) {
 			{
 				Config: fmt.Sprintf(testDataSourceConfigBasic, testHttpMock.server.URL, 200),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
@@ -58,7 +57,6 @@ func TestDataSource_withHeaders200(t *testing.T) {
 			{
 				Config: fmt.Sprintf(testDataSourceConfigWithHeaders, testHttpMock.server.URL, 200),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
 				),
 			},
@@ -77,7 +75,6 @@ func TestDataSource_utf8(t *testing.T) {
 			{
 				Config: fmt.Sprintf(testDataSourceConfigUTF8, testHttpMock.server.URL, 200),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
 				),
 			},
@@ -102,52 +99,23 @@ func TestDataSource_utf16(t *testing.T) {
 	})
 }
 
-// TODO: This test fails under Terraform 0.14. It should be uncommented when we
-// are able to include Terraform version logic within acceptance tests, or when
-// 0.14 is removed from the test matrix.
-// See https://github.com/hashicorp/terraform-provider-http/pull/74
-//
-// const testDataSourceConfig_x509cert = `
-// data "http" "http_test" {
-//   url = "%s/x509/cert.pem"
-// }
+func TestDataSource_x509cert(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
 
-// output "body" {
-//   value = "${data.http.http_test.body}"
-// }
-// `
+	defer testHttpMock.server.Close()
 
-// func TestDataSource_x509cert(t *testing.T) {
-// 	testHttpMock := setUpMockHttpServer()
-
-// 	defer testHttpMock.server.Close()
-
-// 	resource.UnitTest(t, resource.TestCase{
-// 		Providers: testProviders,
-// 		Steps: []resource.TestStep{
-// 			{
-// 				Config: fmt.Sprintf(testDataSourceConfig_x509cert, testHttpMock.server.URL),
-// 				Check: func(s *terraform.State) error {
-// 					_, ok := s.RootModule().Resources["data.http.http_test"]
-// 					if !ok {
-// 						return fmt.Errorf("missing data resource")
-// 					}
-
-// 					outputs := s.RootModule().Outputs
-
-// 					if outputs["body"].Value != "pem" {
-// 						return fmt.Errorf(
-// 							`'body' output is %s; want 'pem'`,
-// 							outputs["body"].Value,
-// 						)
-// 					}
-
-// 					return nil
-// 				},
-// 			},
-// 		},
-// 	})
-// }
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(testDataSourceConfigx509cert, testHttpMock.server.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "pem"),
+				),
+			},
+		},
+	})
+}
 
 const testDataSourceConfigBasic = `
 data "http" "http_test" {
@@ -174,6 +142,12 @@ data "http" "http_test" {
 const testDataSourceConfigUTF16 = `
 data "http" "http_test" {
   url = "%s/utf-16/meta_%d.txt"
+}
+`
+
+const testDataSourceConfigx509cert = `
+data "http" "http_test" {
+  url = "%s/x509/cert.pem"
 }
 `
 
