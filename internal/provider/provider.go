@@ -10,6 +10,8 @@ import (
 type provider struct {
 }
 
+var _ tfsdk.Provider = (*provider)(nil)
+
 func New() tfsdk.Provider {
 	return &provider{}
 }
@@ -27,6 +29,6 @@ func (p *provider) GetResources(_ context.Context) (map[string]tfsdk.ResourceTyp
 
 func (p *provider) GetDataSources(_ context.Context) (map[string]tfsdk.DataSourceType, diag.Diagnostics) {
 	return map[string]tfsdk.DataSourceType{
-		"http": dataSourceHTTPType{},
+		"http": &dataSourceHTTPType{},
 	}, nil
 }

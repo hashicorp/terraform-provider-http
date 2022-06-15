@@ -17,7 +17,9 @@ import (
 type dataSourceHTTPType struct {
 }
 
-func (d dataSourceHTTPType) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
+var _ tfsdk.DataSourceType = (*dataSourceHTTPType)(nil)
+
+func (d *dataSourceHTTPType) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Description: `
 The ` + "`http`" + ` data source makes an HTTP GET request to the given URL and exports
@@ -78,8 +80,8 @@ your control should be treated as untrustworthy.`,
 	}, nil
 }
 
-func (d dataSourceHTTPType) NewDataSource(ctx context.Context, p tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
-	return dataSourceHTTP{
+func (d *dataSourceHTTPType) NewDataSource(_ context.Context, p tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
+	return &dataSourceHTTP{
 		p: *(p.(*provider)),
 	}, nil
 }
@@ -87,6 +89,8 @@ func (d dataSourceHTTPType) NewDataSource(ctx context.Context, p tfsdk.Provider)
 type dataSourceHTTP struct {
 	p provider
 }
+
+var _ tfsdk.DataSource = (*dataSourceHTTP)(nil)
 
 type HTTPModel struct {
 	ID              types.String `tfsdk:"id"`
@@ -97,7 +101,7 @@ type HTTPModel struct {
 	StatusCode      types.Int64  `tfsdk:"status_code"`
 }
 
-func (d dataSourceHTTP) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
+func (d *dataSourceHTTP) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
 	var model HTTPModel
 	diags := req.Config.Get(ctx, &model)
 	resp.Diagnostics.Append(diags...)
