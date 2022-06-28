@@ -1,4 +1,4 @@
-package provider
+package http
 
 import (
 	"context"
@@ -14,12 +14,15 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-type dataSourceHTTPType struct {
+func NewDataSourceType() *dataSourceType {
+	return &dataSourceType{}
 }
 
-var _ tfsdk.DataSourceType = (*dataSourceHTTPType)(nil)
+var _ tfsdk.DataSourceType = (*dataSourceType)(nil)
 
-func (d *dataSourceHTTPType) GetSchema(_ context.Context) (tfsdk.Schema, diag.Diagnostics) {
+type dataSourceType struct{}
+
+func (d *dataSourceType) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Description: `
 The ` + "`http`" + ` data source makes an HTTP GET request to the given URL and exports
@@ -80,29 +83,16 @@ your control should be treated as untrustworthy.`,
 	}, nil
 }
 
-func (d *dataSourceHTTPType) NewDataSource(_ context.Context, p tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
-	return &dataSourceHTTP{
-		p: *(p.(*provider)),
-	}, nil
+func (d *dataSourceType) NewDataSource(context.Context, tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
+	return &dataSource{}, nil
 }
 
-type dataSourceHTTP struct {
-	p provider
-}
+var _ tfsdk.DataSource = (*dataSource)(nil)
 
-var _ tfsdk.DataSource = (*dataSourceHTTP)(nil)
+type dataSource struct{}
 
-type HTTPModel struct {
-	ID              types.String `tfsdk:"id"`
-	URL             types.String `tfsdk:"url"`
-	RequestHeaders  types.Map    `tfsdk:"request_headers"`
-	ResponseHeaders types.Map    `tfsdk:"response_headers"`
-	ResponseBody    types.String `tfsdk:"response_body"`
-	StatusCode      types.Int64  `tfsdk:"status_code"`
-}
-
-func (d *dataSourceHTTP) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
-	var model HTTPModel
+func (d *dataSource) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
+	var model modelV0
 	diags := req.Config.Get(ctx, &model)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -212,4 +202,13 @@ func isContentTypeText(contentType string) bool {
 	}
 
 	return false
+}
+
+type modelV0 struct {
+	ID              types.String `tfsdk:"id"`
+	URL             types.String `tfsdk:"url"`
+	RequestHeaders  types.Map    `tfsdk:"request_headers"`
+	ResponseHeaders types.Map    `tfsdk:"response_headers"`
+	ResponseBody    types.String `tfsdk:"response_body"`
+	StatusCode      types.Int64  `tfsdk:"status_code"`
 }

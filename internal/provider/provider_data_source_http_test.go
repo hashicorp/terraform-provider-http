@@ -11,11 +11,10 @@ import (
 
 func TestDataSource_200(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
-
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -36,11 +35,10 @@ func TestDataSource_200(t *testing.T) {
 
 func TestDataSource_404(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
-
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -58,11 +56,10 @@ func TestDataSource_404(t *testing.T) {
 
 func TestDataSource_withAuthorizationRequestHeader_200(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
-
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -84,11 +81,10 @@ func TestDataSource_withAuthorizationRequestHeader_200(t *testing.T) {
 
 func TestDataSource_withAuthorizationRequestHeader_403(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
-
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -110,11 +106,10 @@ func TestDataSource_withAuthorizationRequestHeader_403(t *testing.T) {
 
 func TestDataSource_utf8_200(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
-
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -133,11 +128,10 @@ func TestDataSource_utf8_200(t *testing.T) {
 
 func TestDataSource_utf16_200(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
-
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -153,11 +147,10 @@ func TestDataSource_utf16_200(t *testing.T) {
 
 func TestDataSource_x509cert(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
-
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -166,6 +159,56 @@ func TestDataSource_x509cert(t *testing.T) {
 							}`, testHttpMock.server.URL),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "pem"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+	defer testHttpMock.server.Close()
+
+	resource.Test(t, resource.TestCase{
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"http": {
+						VersionConstraint: "2.2.0",
+						Source:            "hashicorp/http",
+					},
+				},
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s/200"
+							}`, testHttpMock.server.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
+				),
+			},
+			{
+				ProtoV6ProviderFactories: protoV6ProviderFactories(),
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s/200"
+							}`, testHttpMock.server.URL),
+				PlanOnly: true,
+			},
+			{
+				ProtoV6ProviderFactories: protoV6ProviderFactories(),
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s/200"
+							}`, testHttpMock.server.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
 				),
 			},
