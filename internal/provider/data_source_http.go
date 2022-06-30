@@ -1,4 +1,4 @@
-package http
+package provider
 
 import (
 	"context"
@@ -14,15 +14,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func NewDataSourceType() *dataSourceType {
-	return &dataSourceType{}
-}
+var _ tfsdk.DataSourceType = (*httpDataSourceType)(nil)
 
-var _ tfsdk.DataSourceType = (*dataSourceType)(nil)
+type httpDataSourceType struct{}
 
-type dataSourceType struct{}
-
-func (d *dataSourceType) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
+func (d *httpDataSourceType) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Description: `
 The ` + "`http`" + ` data source makes an HTTP GET request to the given URL and exports
@@ -83,15 +79,15 @@ your control should be treated as untrustworthy.`,
 	}, nil
 }
 
-func (d *dataSourceType) NewDataSource(context.Context, tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
-	return &dataSource{}, nil
+func (d *httpDataSourceType) NewDataSource(context.Context, tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
+	return &httpDataSource{}, nil
 }
 
-var _ tfsdk.DataSource = (*dataSource)(nil)
+var _ tfsdk.DataSource = (*httpDataSource)(nil)
 
-type dataSource struct{}
+type httpDataSource struct{}
 
-func (d *dataSource) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
+func (d *httpDataSource) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
 	var model modelV0
 	diags := req.Config.Get(ctx, &model)
 	resp.Diagnostics.Append(diags...)

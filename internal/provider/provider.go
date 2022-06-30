@@ -5,8 +5,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
-
-	httprequest "github.com/terraform-providers/terraform-provider-http/internal/datasources/http"
 )
 
 func New() tfsdk.Provider {
@@ -30,6 +28,6 @@ func (p *provider) GetResources(context.Context) (map[string]tfsdk.ResourceType,
 
 func (p *provider) GetDataSources(context.Context) (map[string]tfsdk.DataSourceType, diag.Diagnostics) {
 	return map[string]tfsdk.DataSourceType{
-		"http": httprequest.NewDataSourceType(),
+		"http": &httpDataSourceType{},
 	}, nil
 }
