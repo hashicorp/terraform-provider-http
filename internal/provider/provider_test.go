@@ -8,8 +8,6 @@ import (
 //nolint:unparam
 func protoV6ProviderFactories() map[string]func() (tfprotov6.ProviderServer, error) {
 	return map[string]func() (tfprotov6.ProviderServer, error){
-		"http": func() (tfprotov6.ProviderServer, error) {
-			return providerserver.NewProtocol6WithError(New())()
-		},
+		"http": providerserver.NewProtocol6WithError(New()),
 	}
 }
