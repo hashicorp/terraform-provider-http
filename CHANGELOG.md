@@ -1,3 +1,17 @@
+## 3.0.0 (unreleased)
+
+NOTES:
+
+* Provider has been re-written using the new [`terraform-plugin-framework`](https://www.terraform.io/plugin/framework) ([#177](https://github.com/hashicorp/terraform-provider-http/pull/142)).
+
+BREAKING CHANGES:
+
+* [Terraform `>=1.0`](https://www.terraform.io/language/upgrade-guides/1-0) is now required to use this provider.
+
+* data-source/http: There is no longer a check that the status code is 200 following a request. `status_code` attribute has been added and should be used in
+  [precondition and postcondition](https://www.terraform.io/language/expressions/custom-conditions) checks instead ([114](https://github.com/hashicorp/terraform-provider-http/pull/114)).
+* data-source/http: Deprecated `body` has been removed ([#137](https://github.com/hashicorp/terraform-provider-http/pull/137)).
+
 ## 2.2.0 (June 02, 2022)
 
 ENHANCEMENTS:
