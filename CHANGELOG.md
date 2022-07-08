@@ -1,4 +1,10 @@
-## 3.0.0 (unreleased)
+## 3.1.0 (unreleased)
+
+ENHANCEMENTS:
+
+* provider: Added optional HTTP `proxy` configuration [#154](https://github.com/hashicorp/terraform-provider-tls/pull/154)).
+
+## 3.0.0-rc.1 (unreleased)
 
 NOTES:
 
