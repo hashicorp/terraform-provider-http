@@ -408,18 +408,22 @@ func proxyAuth() func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *h
 			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusForbidden, "")
 		}
 
-		c, err := base64.StdEncoding.DecodeString(auth[len("Basic "):])
+		dec, err := base64.StdEncoding.DecodeString(auth[len("Basic "):])
 		if err != nil {
 			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusProxyAuthRequired, "")
 		}
 
-		cs := string(c)
-		username, password, ok := strings.Cut(cs, ":")
-		if !ok {
+		decStr := string(dec)
+
+		separatorIndex := strings.IndexByte(decStr, ':')
+		if separatorIndex < 0 {
 			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusProxyAuthRequired, "")
 		}
 
-		if username == "correctUsername" && password == "" || password == "correctPassword" {
+		username := decStr[:separatorIndex]
+		password := decStr[separatorIndex+1:]
+
+		if username == "correctUsername" && (password == "" || password == "correctPassword") {
 			return r, nil
 		}
 
