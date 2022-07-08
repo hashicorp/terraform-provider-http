@@ -79,13 +79,17 @@ your control should be treated as untrustworthy.`,
 	}, nil
 }
 
-func (d *httpDataSourceType) NewDataSource(context.Context, tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
-	return &httpDataSource{}, nil
+func (d *httpDataSourceType) NewDataSource(_ context.Context, p tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
+	return &httpDataSource{
+		p: p.(*provider),
+	}, nil
 }
 
 var _ tfsdk.DataSource = (*httpDataSource)(nil)
 
-type httpDataSource struct{}
+type httpDataSource struct {
+	p *provider
+}
 
 func (d *httpDataSource) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
 	var model modelV0
@@ -98,7 +102,11 @@ func (d *httpDataSource) Read(ctx context.Context, req tfsdk.ReadDataSourceReque
 	url := model.URL.Value
 	headers := model.RequestHeaders
 
-	client := &http.Client{}
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: d.p.proxyForRequestFunc(ctx),
+		},
+	}
 
 	request, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {

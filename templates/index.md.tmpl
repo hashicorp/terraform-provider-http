@@ -9,7 +9,10 @@ description: |-
 The HTTP provider is a utility provider for interacting with generic HTTP
 servers as part of a Terraform configuration.
 
-This provider requires no configuration. For information on the resources
-it provides, see the navigation bar.
+### Configuring Proxy
 
-{{- /* No schema in this provider, so no need for this: .SchemaMarkdown | trimspace */ -}}
+{{ tffile "examples/provider/provider_with_proxy.tf" }}
+
+{{ tffile "examples/provider/provider_with_proxy_from_env.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
