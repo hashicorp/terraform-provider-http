@@ -1,11 +1,15 @@
 package provider
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
+	"strings"
 	"testing"
 
+	"github.com/elazarl/goproxy"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
@@ -214,6 +218,218 @@ func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestDataSource_HTTPViaProxy(t *testing.T) {
+	t.Parallel()
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer svr.Close()
+
+	proxy := httptest.NewServer(goproxy.NewProxyHttpServer())
+	defer proxy.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					provider "http" {
+						proxy = {
+							url = "%s"
+						}
+					}
+					data "http" "http_test" {
+						url = "%s"
+					}
+				`, proxy.URL, svr.URL),
+				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+			},
+		},
+	})
+}
+
+func TestDataSource_HTTPViaProxyWithBasicAuthConfig(t *testing.T) {
+	t.Parallel()
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer svr.Close()
+
+	p := goproxy.NewProxyHttpServer()
+	p.OnRequest().DoFunc(proxyAuth())
+
+	proxy := httptest.NewServer(p)
+	defer proxy.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					provider "http" {
+						proxy = {
+							url = "%s"
+							username = "correctUsername"
+						}
+					}
+					data "http" "http_test" {
+						url = "%s"
+					}
+				`, proxy.URL, svr.URL),
+				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+			},
+			{
+				Config: fmt.Sprintf(`
+					provider "http" {
+						proxy = {
+							url = "%s"
+							username = "incorrectUsername"
+						}
+					}
+					data "http" "http_test" {
+						url = "%s"
+					}
+				`, proxy.URL, svr.URL),
+				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "407"),
+			},
+			{
+				Config: fmt.Sprintf(`
+					provider "http" {
+						proxy = {
+							url = "%s"
+							username = "correctUsername"
+							password = "correctPassword"
+						}
+					}
+					data "http" "http_test" {
+						url = "%s"
+					}
+				`, proxy.URL, svr.URL),
+				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+			},
+			{
+				Config: fmt.Sprintf(`
+					provider "http" {
+						proxy = {
+							url = "%s"
+							username = "correctUsername"
+							password = "incorrectPassword"
+						}
+					}
+					data "http" "http_test" {
+						url = "%s"
+					}
+				`, proxy.URL, svr.URL),
+				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "407"),
+			},
+		},
+	})
+}
+
+func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer svr.Close()
+
+	p := goproxy.NewProxyHttpServer()
+	p.OnRequest().DoFunc(proxyAuth())
+
+	proxy := httptest.NewServer(p)
+	defer proxy.Close()
+
+	t.Setenv("HTTP_PROXY", proxy.URL)
+	t.Setenv("HTTPS_PROXY", proxy.URL)
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					provider "http" {
+						proxy = {
+							from_env = true
+						}
+					}
+					data "http" "http_test" {
+						url = "%s"
+					}
+				`, svr.URL),
+				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+			},
+		},
+	})
+}
+
+func TestDataSource_HTTPNoProxyAvailable(t *testing.T) {
+	t.Parallel()
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer svr.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					provider "http" {
+						proxy = {
+							url = "http://not-a-real-proxy.com"
+						}
+					}
+					data "http" "http_test" {
+						url = "%s"
+					}
+				`, svr.URL),
+				ExpectError: regexp.MustCompile(
+					fmt.Sprintf(`Error making request: Get "%s": proxyconnect tcp: dial\ntcp: lookup not-a-real-proxy.com: no such host`,
+						svr.URL,
+					),
+				),
+			},
+		},
+	})
+}
+
+func proxyAuth() func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
+	return func(r *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *http.Response) {
+		auth := r.Header.Get("Proxy-Authorization")
+		if auth == "" {
+			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusForbidden, "")
+		}
+
+		dec, err := base64.StdEncoding.DecodeString(auth[len("Basic "):])
+		if err != nil {
+			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusProxyAuthRequired, "")
+		}
+
+		decStr := string(dec)
+
+		separatorIndex := strings.IndexByte(decStr, ':')
+		if separatorIndex < 0 {
+			return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusProxyAuthRequired, "")
+		}
+
+		username := decStr[:separatorIndex]
+		password := decStr[separatorIndex+1:]
+
+		if username == "correctUsername" && (password == "" || password == "correctPassword") {
+			return r, nil
+		}
+
+		return r, goproxy.NewResponse(r, goproxy.ContentTypeText, http.StatusProxyAuthRequired, "")
+
+	}
 }
 
 type TestHttpMock struct {
