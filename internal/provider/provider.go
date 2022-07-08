@@ -81,9 +81,6 @@ func (p *provider) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	}, nil
 }
 
-// Configure unmarshalls the proxy config onto providerConfigModel and checks that `proxy` is not null or unknown before proceeding.
-// Then unmarshalls contents of proxy onto providerProxyConfigModel.
-// Then checks each of the fields (i.e., URL, Username, Password, FromEnv)
 func (p *provider) Configure(ctx context.Context, req tfsdk.ConfigureProviderRequest, res *tfsdk.ConfigureProviderResponse) {
 	tflog.Debug(ctx, "Configuring provider")
 	var err error
