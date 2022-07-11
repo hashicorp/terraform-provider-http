@@ -344,6 +344,63 @@ func TestDataSource_UnsupportedMethod(t *testing.T) {
 	})
 }
 
+func TestDataSource_ResponseBodyText(t *testing.T) {
+	t.Parallel()
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`你好世界`)) // Hello world
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer svr.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+							}`, svr.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "你好世界"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body_base64_std", "5L2g5aW95LiW55WM"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_ResponseBodyBinary(t *testing.T) {
+	t.Parallel()
+
+	// 1 x 1 transparent gif pixel.
+	const transPixel = "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00\x21\xF9\x04\x01\x00\x00\x00\x00\x2C\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3B"
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/gif")
+		_, _ = w.Write([]byte(transPixel))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer svr.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+							}`, svr.URL),
+				Check: resource.ComposeTestCheckFunc(
+					// Note the replacement character in the string representation in `response_body`.
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "GIF89a\x01\x00\x01\x00�\x00\x00\x00\x00\x00\x00\x00\x00!�\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body_base64_std", "R0lGODlhAQABAIAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="),
+				),
+			},
+		},
+	})
+}
+
 type TestHttpMock struct {
 	server *httptest.Server
 }
