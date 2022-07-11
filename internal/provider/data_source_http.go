@@ -4,13 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
-	"mime"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -115,7 +115,10 @@ your control should be treated as untrustworthy.`,
 				Description: "Disables verification of the server's certificate chain and hostname. Defaults to `false`",
 				Optional:    true,
 			},
-
+			"response_body_base64": schema.StringAttribute{
+				Description: "The response body encoded as base64 (standard) as defined in [RFC 4648](https://datatracker.ietf.org/doc/html/rfc4648#section-4).",
+				Computed:    true,
+			},
 			"response_headers": schema.MapAttribute{
 				Description: `A map of response header field names and values.` +
 					` Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
@@ -230,14 +233,6 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	defer response.Body.Close()
 
-	contentType := response.Header.Get("Content-Type")
-	if !isContentTypeText(contentType) {
-		resp.Diagnostics.AddWarning(
-			fmt.Sprintf("Content-Type is not recognized as a text type, got %q", contentType),
-			"If the content is binary data, Terraform may not properly handle the contents of the response.",
-		)
-	}
-
 	bytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -247,7 +242,18 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
+	if !utf8.Valid(bytes) {
+		// TODO(ddelnano): Determine the appropriate fix for this
+		// This causes acceptance tests to fail on all terraform v0.14 releases and is
+		// fixed in v0.15.0-alpha20210107.
+		resp.Diagnostics.AddWarning(
+			"Response body is not recognized as UTF-8",
+			"Terraform may not properly handle the response_body if the contents are binary.",
+		)
+	}
+
 	responseBody := string(bytes)
+	responseBodyBase64Std := base64.StdEncoding.EncodeToString(bytes)
 
 	responseHeaders := make(map[string]string)
 	for k, v := range response.Header {
@@ -266,48 +272,24 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	model.ResponseHeaders = respHeadersState
 	model.ResponseBody = types.StringValue(responseBody)
 	model.Body = types.StringValue(responseBody)
+	model.ResponseBodyBase64Std = types.StringValue(responseBodyBase64Std)
 	model.StatusCode = types.Int64Value(int64(response.StatusCode))
 
 	diags = resp.State.Set(ctx, model)
 	resp.Diagnostics.Append(diags...)
 }
 
-// This is to prevent potential issues w/ binary files
-// and generally unprintable characters
-// See https://github.com/hashicorp/terraform/pull/3858#issuecomment-156856738
-func isContentTypeText(contentType string) bool {
-
-	parsedType, params, err := mime.ParseMediaType(contentType)
-	if err != nil {
-		return false
-	}
-
-	allowedContentTypes := []*regexp.Regexp{
-		regexp.MustCompile("^text/.+"),
-		regexp.MustCompile("^application/json$"),
-		regexp.MustCompile(`^application/samlmetadata\+xml`),
-	}
-
-	for _, r := range allowedContentTypes {
-		if r.MatchString(parsedType) {
-			charset := strings.ToLower(params["charset"])
-			return charset == "" || charset == "utf-8" || charset == "us-ascii"
-		}
-	}
-
-	return false
-}
-
 type modelV0 struct {
-	ID              types.String `tfsdk:"id"`
-	URL             types.String `tfsdk:"url"`
-	Method          types.String `tfsdk:"method"`
-	RequestHeaders  types.Map    `tfsdk:"request_headers"`
-	RequestBody     types.String `tfsdk:"request_body"`
-	ResponseHeaders types.Map    `tfsdk:"response_headers"`
-	CaCertificate   types.String `tfsdk:"ca_cert_pem"`
-	Insecure        types.Bool   `tfsdk:"insecure"`
-	ResponseBody    types.String `tfsdk:"response_body"`
-	Body            types.String `tfsdk:"body"`
-	StatusCode      types.Int64  `tfsdk:"status_code"`
+	ID                    types.String `tfsdk:"id"`
+	URL                   types.String `tfsdk:"url"`
+	Method                types.String `tfsdk:"method"`
+	RequestHeaders        types.Map    `tfsdk:"request_headers"`
+	RequestBody           types.String `tfsdk:"request_body"`
+	ResponseHeaders       types.Map    `tfsdk:"response_headers"`
+	CaCertificate         types.String `tfsdk:"ca_cert_pem"`
+	Insecure              types.Bool   `tfsdk:"insecure"`
+	ResponseBody          types.String `tfsdk:"response_body"`
+	Body                  types.String `tfsdk:"body"`
+	ResponseBodyBase64Std types.String `tfsdk:"response_body_base64"`
+	StatusCode            types.Int64  `tfsdk:"status_code"`
 }
