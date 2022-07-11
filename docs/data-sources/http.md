@@ -154,5 +154,6 @@ resource "null_resource" "example" {
 - `body` (String, Deprecated) The response body returned as a string. **NOTE**: This is deprecated, use `response_body` instead.
 - `id` (String) The URL used for the request.
 - `response_body` (String) The response body returned as a string.
+- `response_body_base64_std` (String) The response body encoded as base64 (standard) as defined in [RFC 4648](https://datatracker.ietf.org/doc/html/rfc4648#section-4).
 - `response_headers` (Map of String) A map of response header field names and values. Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).
 - `status_code` (Number) The HTTP response status code.

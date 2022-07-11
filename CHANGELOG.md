@@ -1,3 +1,10 @@
+## 3.3.0 (unreleased)
+
+ENHANCEMENTS:
+
+* data-source/http: `response_body_base64_std` has been added and contains a standard base64 encoding of the response body ([#158](https://github.com/hashicorp/terraform-provider-http/pull/158)).
+* data-source/http: Replaced issuing warning on the basis of possible non-text `Content-Type` with issuing warning if response body does not contain valid UTF-8. ([#158](https://github.com/hashicorp/terraform-provider-http/pull/158)).
+
 ## 3.2.1 (November 7, 2022)
 
 BUG FIXES
@@ -10,6 +17,7 @@ ENHANCEMENTS:
 
 * data-source/http: Added `ca_cert_pem` attribute which allows PEM encoded certificate(s) to be included in the set of root certificate authorities used when verifying server certificates ([#125](https://github.com/hashicorp/terraform-provider-http/pull/125)).
 * data-source/http: Added `insecure` attribute to allow disabling the verification of a server's certificate chain and host name. Defaults to `false` ([#125](https://github.com/hashicorp/terraform-provider-http/pull/125)).
+=======
 
 ## 3.1.0 (August 30, 2022)
 
