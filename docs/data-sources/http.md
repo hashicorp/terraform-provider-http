@@ -108,6 +108,10 @@ data "http" "example" {
 }
 
 resource "null_resource" "example" {
+  # On success, this will attempt to execute the true command in the
+  # shell environment running terraform.
+  # On failure, this will attempt to execute the false command in the
+  # shell environment running terraform.
   provisioner "local-exec" {
     command = contains([201, 204], data.http.example.status_code)
   }
