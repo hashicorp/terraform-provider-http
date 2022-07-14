@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -211,6 +212,53 @@ func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
 				),
+			},
+		},
+	})
+}
+
+func TestDataSource_Provisioner(t *testing.T) {
+	t.Parallel()
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer svr.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"null": {
+				VersionConstraint: "3.1.1",
+				Source:            "hashicorp/null",
+			},
+		},
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+							}
+
+							resource "null_resource" "example" {
+  								provisioner "local-exec" {
+    								command = contains([201, 204], data.http.http_test.status_code)
+  								}
+							}`, svr.URL),
+				ExpectError: regexp.MustCompile(`Error running command 'false': exit status 1. Output:`),
+			},
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+							}
+
+							resource "null_resource" "example" {
+  								provisioner "local-exec" {
+    								command = contains([200], data.http.http_test.status_code)
+  								}
+							}`, svr.URL),
+				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
 			},
 		},
 	})
