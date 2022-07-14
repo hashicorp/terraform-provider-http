@@ -27,4 +27,11 @@ checks are available with Terraform v1.2.0 and later.
 
 {{ tffile "examples/data-sources/http/precondition.tf" }}
 
+## Usage with Provisioner
+
+[Failure Behaviour](https://www.terraform.io/language/resources/provisioners/syntax#failure-behavior)
+can be leveraged within a provisioner in order to raise an error and stop applying.
+
+{{ tffile "examples/data-sources/http/provisioner.tf" }}
+
 {{ .SchemaMarkdown | trimspace }}
