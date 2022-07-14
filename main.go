@@ -27,8 +27,9 @@ func main() {
 	flag.Parse()
 
 	err := providerserver.Serve(context.Background(), provider.New, providerserver.ServeOpts{
-		Address: "registry.terraform.io/hashicorp/http",
-		Debug:   debug,
+		Address:         "registry.terraform.io/hashicorp/http",
+		Debug:           debug,
+		ProtocolVersion: 5,
 	})
 	if err != nil {
 		log.Fatal(err)
