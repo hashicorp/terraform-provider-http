@@ -20,9 +20,21 @@ We also provide:
 
 The remainder of this document will focus on the development aspects of the provider.
 
+## Compatibility
+
+Compatibility table between this provider,
+the [Registry Protocol](https://www.terraform.io/internals/provider-registry-protocol)
+version it implements, and Terraform:
+
+|     HTTP Provider      | Registry Protocol | Terraform |
+|:----------------------:|:-----------------:|:---------:|
+|        `>= 2.x`        |        `5`        | `>= 0.12` |
+| `>= 1.1.x`, `<= 1.2.x` |     `4`, `5`      | `>= 0.11` |
+|       `<= 1.0.x`       |        `4`        | `>= 0.11` |
+
 ## Requirements
 
-* [Terraform](https://www.terraform.io/downloads) (>= 0.12)
+* [Terraform](https://www.terraform.io/downloads)
 * [Go](https://go.dev/doc/install) (1.17)
 * [GNU Make](https://www.gnu.org/software/make/)
 * [golangci-lint](https://golangci-lint.run/usage/install/#local-installation) (optional)
