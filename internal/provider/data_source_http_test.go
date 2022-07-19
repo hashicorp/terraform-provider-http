@@ -226,6 +226,11 @@ func TestDataSource_Provisioner(t *testing.T) {
 	t.Parallel()
 
 	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// A Content-Type that does not raise a warning in the Read function must be set in
+		// order to prevent test failure under TF 0.14.x as warnings result in no output
+		// being written which causes the local-exec command to fail with "Error:
+		// local-exec provisioner command must be a non-empty string".
+		// See https://github.com/hashicorp/terraform-provider-http/pull/74
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
 	}))
