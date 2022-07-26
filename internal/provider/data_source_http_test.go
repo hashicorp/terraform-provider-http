@@ -236,7 +236,7 @@ func TestDataSource_Provisioner(t *testing.T) {
 	}))
 	defer svr.Close()
 
-	resource.UnitTest(t, resource.TestCase{
+	resource.Test(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		ExternalProviders: map[string]resource.ExternalProvider{
 			"null": {
