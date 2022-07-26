@@ -23,14 +23,14 @@ The remainder of this document will focus on the development aspects of the prov
 ## Compatibility
 
 Compatibility table between this provider,
-the [Registry Protocol](https://www.terraform.io/internals/provider-registry-protocol)
+the [Terraform Plugin Protocol](https://www.terraform.io/plugin/how-terraform-works#terraform-plugin-protocol)
 version it implements, and Terraform:
 
-|     HTTP Provider      | Registry Protocol | Terraform |
-|:----------------------:|:-----------------:|:---------:|
-|        `>= 2.x`        |        `5`        | `>= 0.12` |
-| `>= 1.1.x`, `<= 1.2.x` |     `4`, `5`      | `>= 0.11` |
-|       `<= 1.0.x`       |        `4`        | `<= 0.11` |
+|     HTTP Provider      | Terraform Plugin Protocol | Terraform |
+|:----------------------:|:-------------------------:|:---------:|
+|        `>= 2.x`        |            `5`            | `>= 0.12` |
+| `>= 1.1.x`, `<= 1.2.x` |         `4`, `5`          | `>= 0.11` |
+|       `<= 1.0.x`       |            `4`            | `<= 0.11` |
 
 ## Requirements
 
