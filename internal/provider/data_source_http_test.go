@@ -147,9 +147,10 @@ func TestDataSource_utf16_200(t *testing.T) {
 }
 
 // TODO: This test fails under Terraform 0.14. It should be uncommented when we
-// are able to include Terraform version logic within acceptance tests, or when
-// 0.14 is removed from the test matrix.
-// See https://github.com/hashicorp/terraform-provider-http/pull/74
+// are able to include Terraform version logic within acceptance tests
+// (see https://github.com/hashicorp/terraform-plugin-sdk/issues/776), or when
+// 0.14 is removed from the test matrix (see
+// https://github.com/hashicorp/terraform-provider-http/pull/74).
 //
 //func TestDataSource_x509cert(t *testing.T) {
 //	testHttpMock := setUpMockHttpServer()
