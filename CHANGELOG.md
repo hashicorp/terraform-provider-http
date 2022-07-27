@@ -6,9 +6,9 @@ NOTES:
 
 BREAKING CHANGES:
 
-* data-source/http: There is no longer a check that the status code is 200 following a request. `status_code` attribute has been added and can be used either with
-  [precondition and postcondition](https://www.terraform.io/language/expressions/custom-conditions#preconditions-and-postconditions) checks in Terraform >= 1.2.0 or,
-  with [local-exec Provisioner](https://www.terraform.io/language/resources/provisioners/local-exec) for instance, instead ([114](https://github.com/hashicorp/terraform-provider-http/pull/114)).
+* data-source/http: Response status code is not checked anymore. A new read-only attribute, `status_code`, has been added. It can be used either with
+  [precondition and postcondition](https://www.terraform.io/language/expressions/custom-conditions#preconditions-and-postconditions) checks (Terraform >= 1.2.0), or, for instance, 
+  with [local-exec Provisioner](https://www.terraform.io/language/resources/provisioners/local-exec) ([114](https://github.com/hashicorp/terraform-provider-http/pull/114)).
 * data-source/http: Deprecated `body` has been removed ([#137](https://github.com/hashicorp/terraform-provider-http/pull/137)).
 
 ## 2.2.0 (June 02, 2022)
