@@ -55,6 +55,14 @@ your control should be treated as untrustworthy.`,
 				Computed:    true,
 			},
 
+			"body": {
+				Description: "The response body returned as a string. " +
+					"**NOTE**: This is deprecated, use `response_body` instead.",
+				Type:               types.StringType,
+				Computed:           true,
+				DeprecationMessage: "Use response_body instead",
+			},
+
 			"response_headers": {
 				Description: `A map of response header field names and values.` +
 					` Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
@@ -168,6 +176,7 @@ func (d *httpDataSource) Read(ctx context.Context, req tfsdk.ReadDataSourceReque
 	model.ID = types.String{Value: url}
 	model.ResponseHeaders = respHeadersState
 	model.ResponseBody = types.String{Value: responseBody}
+	model.Body = types.String{Value: responseBody}
 	model.StatusCode = types.Int64{Value: int64(response.StatusCode)}
 
 	diags = resp.State.Set(ctx, model)
@@ -206,5 +215,6 @@ type modelV0 struct {
 	RequestHeaders  types.Map    `tfsdk:"request_headers"`
 	ResponseHeaders types.Map    `tfsdk:"response_headers"`
 	ResponseBody    types.String `tfsdk:"response_body"`
+	Body            types.String `tfsdk:"body"`
 	StatusCode      types.Int64  `tfsdk:"status_code"`
 }
