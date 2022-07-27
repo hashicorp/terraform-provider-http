@@ -213,6 +213,7 @@ func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
 							}`, testHttpMock.server.URL),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "body", "1.0.0"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
