@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -14,7 +15,7 @@ func TestDataSource_200(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -38,7 +39,7 @@ func TestDataSource_404(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -59,7 +60,7 @@ func TestDataSource_withAuthorizationRequestHeader_200(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -84,7 +85,7 @@ func TestDataSource_withAuthorizationRequestHeader_403(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -109,7 +110,7 @@ func TestDataSource_utf8_200(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -131,7 +132,7 @@ func TestDataSource_utf16_200(t *testing.T) {
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -145,26 +146,32 @@ func TestDataSource_utf16_200(t *testing.T) {
 	})
 }
 
-func TestDataSource_x509cert(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
-	defer testHttpMock.server.Close()
-
-	resource.UnitTest(t, resource.TestCase{
-		ProtoV6ProviderFactories: protoV6ProviderFactories(),
-		Steps: []resource.TestStep{
-			{
-				Config: fmt.Sprintf(`
-							data "http" "http_test" {
-  								url = "%s/x509-ca-cert/200"
-							}`, testHttpMock.server.URL),
-				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "pem"),
-					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
-				),
-			},
-		},
-	})
-}
+// TODO: This test fails under Terraform 0.14. It should be uncommented when we
+// are able to include Terraform version logic within acceptance tests
+// (see https://github.com/hashicorp/terraform-plugin-sdk/issues/776), or when
+// 0.14 is removed from the test matrix (see
+// https://github.com/hashicorp/terraform-provider-http/pull/74).
+//
+//func TestDataSource_x509cert(t *testing.T) {
+//	testHttpMock := setUpMockHttpServer()
+//	defer testHttpMock.server.Close()
+//
+//	resource.UnitTest(t, resource.TestCase{
+//		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+//		Steps: []resource.TestStep{
+//			{
+//				Config: fmt.Sprintf(`
+//							data "http" "http_test" {
+//  								url = "%s/x509-ca-cert/200"
+//							}`, testHttpMock.server.URL),
+//				Check: resource.ComposeTestCheckFunc(
+//					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "pem"),
+//					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+//				),
+//			},
+//		},
+//	})
+//}
 
 func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
 	testHttpMock := setUpMockHttpServer()
@@ -191,7 +198,7 @@ func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
 				),
 			},
 			{
-				ProtoV6ProviderFactories: protoV6ProviderFactories(),
+				ProtoV5ProviderFactories: protoV5ProviderFactories(),
 				Config: fmt.Sprintf(`
 							data "http" "http_test" {
 								url = "%s/200"
@@ -199,7 +206,7 @@ func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
 				PlanOnly: true,
 			},
 			{
-				ProtoV6ProviderFactories: protoV6ProviderFactories(),
+				ProtoV5ProviderFactories: protoV5ProviderFactories(),
 				Config: fmt.Sprintf(`
 							data "http" "http_test" {
 								url = "%s/200"
@@ -211,6 +218,59 @@ func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
 				),
+			},
+		},
+	})
+}
+
+func TestDataSource_Provisioner(t *testing.T) {
+	t.Parallel()
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// A Content-Type that does not raise a warning in the Read function must be set in
+		// order to prevent test failure under TF 0.14.x as warnings result in no output
+		// being written which causes the local-exec command to fail with "Error:
+		// local-exec provisioner command must be a non-empty string".
+		// See https://github.com/hashicorp/terraform-provider-http/pull/74
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer svr.Close()
+
+	resource.Test(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"null": {
+				VersionConstraint: "3.1.1",
+				Source:            "hashicorp/null",
+			},
+		},
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+							}
+
+							resource "null_resource" "example" {
+  								provisioner "local-exec" {
+    								command = contains([201, 204], data.http.http_test.status_code)
+  								}
+							}`, svr.URL),
+				ExpectError: regexp.MustCompile(`Error running command 'false': exit status 1. Output:`),
+			},
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+							}
+
+							resource "null_resource" "example" {
+  								provisioner "local-exec" {
+    								command = contains([200], data.http.http_test.status_code)
+  								}
+							}`, svr.URL),
+				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
 			},
 		},
 	})
