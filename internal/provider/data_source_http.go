@@ -37,7 +37,7 @@ your control should be treated as untrustworthy.`,
 
 		Attributes: map[string]tfsdk.Attribute{
 			"id": {
-				Description: "The ID of this resource.",
+				Description: "The URL used for the request.",
 				Type:        types.StringType,
 				Computed:    true,
 			},
