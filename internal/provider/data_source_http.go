@@ -51,16 +51,13 @@ your control should be treated as untrustworthy.`,
 			"method": {
 				Description: "The HTTP Method for the request. " +
 					"Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, " +
-					"`GET`, `POST`, `PUT`, `PATCH`, `DELETE` and `HEAD`.",
+					"`GET`, `HEAD`, and `POST`. `POST` support is only intended for read-only URLs, such as submitting a search.",
 				Type:     types.StringType,
 				Optional: true,
 				Validators: []tfsdk.AttributeValidator{
 					stringvalidator.OneOf([]string{
 						http.MethodGet,
 						http.MethodPost,
-						http.MethodPut,
-						http.MethodPatch,
-						http.MethodDelete,
 						http.MethodHead,
 					}...),
 				},
