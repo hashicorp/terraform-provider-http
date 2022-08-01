@@ -335,11 +335,10 @@ func TestDataSource_UnsupportedMethod(t *testing.T) {
 			{
 				Config: fmt.Sprintf(`
 							data "http" "http_test" {
- 								url = "%s/deleted"
+ 								url = "%s/200"
 								method = "OPTIONS" 
 							}`, testHttpMock.server.URL),
-				// Terraform < 0.15 wraps in a  different location to TF >= 0.15 hence the use of (?:\n| ).
-				ExpectError: regexp.MustCompile(`.*Value must be one of: \["\\"GET\\"" "\\"POST\\"" "\\"HEAD\\""),
+				ExpectError: regexp.MustCompile(`.*Value must be one of: \["\\"GET\\"" "\\"POST\\"" "\\"HEAD\\""`),
 			},
 		},
 	})

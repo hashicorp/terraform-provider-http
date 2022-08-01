@@ -10,6 +10,7 @@ BUG FIXES
 
 * data-source/http: Reinstated previously deprecated and removed `body` attribute ([#166](https://github.com/hashicorp/terraform-provider-http/pull/166)).
 
+
 ## 3.0.0 (July 27, 2022)
 
 NOTES:
