@@ -252,7 +252,6 @@ func TestDataSource_Provisioner(t *testing.T) {
 							data "http" "http_test" {
 								url = "%s"
 							}
-
 							resource "null_resource" "example" {
   								provisioner "local-exec" {
     								command = contains([201, 204], data.http.http_test.status_code)
@@ -265,13 +264,81 @@ func TestDataSource_Provisioner(t *testing.T) {
 							data "http" "http_test" {
 								url = "%s"
 							}
-
 							resource "null_resource" "example" {
   								provisioner "local-exec" {
     								command = contains([200], data.http.http_test.status_code)
   								}
 							}`, svr.URL),
 				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+			},
+		},
+	})
+}
+
+func TestDataSource_POST_201(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+ 								url = "%s/create"
+								method = "POST" 
+							}`, testHttpMock.server.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "created"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "201"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_HEAD_204(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+ 								url = "%s/head"
+								method = "HEAD" 
+							}`, testHttpMock.server.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", ""),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_UnsupportedMethod(t *testing.T) {
+	testHttpMock := setUpMockHttpServer()
+
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+ 								url = "%s/200"
+								method = "OPTIONS" 
+							}`, testHttpMock.server.URL),
+				ExpectError: regexp.MustCompile(`.*Value must be one of: \["\\"GET\\"" "\\"POST\\"" "\\"HEAD\\""`),
 			},
 		},
 	})
@@ -312,6 +379,15 @@ func setUpMockHttpServer() *TestHttpMock {
 				w.Header().Set("Content-Type", "application/x-x509-ca-cert")
 				w.WriteHeader(http.StatusOK)
 				_, _ = w.Write([]byte("pem"))
+			case "/create":
+				if r.Method == "POST" {
+					w.WriteHeader(http.StatusCreated)
+					_, _ = w.Write([]byte("created"))
+				}
+			case "/head":
+				if r.Method == "HEAD" {
+					w.WriteHeader(http.StatusOK)
+				}
 			default:
 				w.WriteHeader(http.StatusNotFound)
 			}

@@ -127,12 +127,14 @@ resource "null_resource" "example" {
 
 ### Optional
 
+- `method` (String) The HTTP Method for the request. Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, `GET`, `HEAD`, and `POST`. `POST` support is only intended for read-only URLs, such as submitting a search.
+- `request_body` (String) The request body as a string.
 - `request_headers` (Map of String) A map of request header field names and values.
 
 ### Read-Only
 
 - `body` (String, Deprecated) The response body returned as a string. **NOTE**: This is deprecated, use `response_body` instead.
-- `id` (String) The ID of this resource.
+- `id` (String) The URL used for the request.
 - `response_body` (String) The response body returned as a string.
 - `response_headers` (Map of String) A map of response header field names and values. Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).
 - `status_code` (Number) The HTTP response status code.

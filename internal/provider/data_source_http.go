@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -35,10 +36,31 @@ the server certificate's chain of trust. Data retrieved from servers not under
 your control should be treated as untrustworthy.`,
 
 		Attributes: map[string]tfsdk.Attribute{
+			"id": {
+				Description: "The URL used for the request.",
+				Type:        types.StringType,
+				Computed:    true,
+			},
+
 			"url": {
 				Description: "The URL for the request. Supported schemes are `http` and `https`.",
 				Type:        types.StringType,
 				Required:    true,
+			},
+
+			"method": {
+				Description: "The HTTP Method for the request. " +
+					"Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, " +
+					"`GET`, `HEAD`, and `POST`. `POST` support is only intended for read-only URLs, such as submitting a search.",
+				Type:     types.StringType,
+				Optional: true,
+				Validators: []tfsdk.AttributeValidator{
+					stringvalidator.OneOf([]string{
+						http.MethodGet,
+						http.MethodPost,
+						http.MethodHead,
+					}...),
+				},
 			},
 
 			"request_headers": {
@@ -47,6 +69,12 @@ your control should be treated as untrustworthy.`,
 					ElemType: types.StringType,
 				},
 				Optional: true,
+			},
+
+			"request_body": {
+				Description: "The request body as a string.",
+				Type:        types.StringType,
+				Optional:    true,
 			},
 
 			"response_body": {
@@ -77,12 +105,6 @@ your control should be treated as untrustworthy.`,
 				Type:        types.Int64Type,
 				Computed:    true,
 			},
-
-			"id": {
-				Description: "The ID of this resource.",
-				Type:        types.StringType,
-				Computed:    true,
-			},
 		},
 	}, nil
 }
@@ -104,11 +126,17 @@ func (d *httpDataSource) Read(ctx context.Context, req tfsdk.ReadDataSourceReque
 	}
 
 	url := model.URL.Value
-	headers := model.RequestHeaders
+	method := model.Method.Value
+	requestHeaders := model.RequestHeaders
+	requestBody := strings.NewReader(model.RequestBody.Value)
+
+	if method == "" {
+		method = "GET"
+	}
 
 	client := &http.Client{}
 
-	request, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	request, err := http.NewRequestWithContext(ctx, method, url, requestBody)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating request",
@@ -117,7 +145,7 @@ func (d *httpDataSource) Read(ctx context.Context, req tfsdk.ReadDataSourceReque
 		return
 	}
 
-	for name, value := range headers.Elems {
+	for name, value := range requestHeaders.Elems {
 		var header string
 		diags = tfsdk.ValueAs(ctx, value, &header)
 		resp.Diagnostics.Append(diags...)
@@ -212,7 +240,9 @@ func isContentTypeText(contentType string) bool {
 type modelV0 struct {
 	ID              types.String `tfsdk:"id"`
 	URL             types.String `tfsdk:"url"`
+	Method          types.String `tfsdk:"method"`
 	RequestHeaders  types.Map    `tfsdk:"request_headers"`
+	RequestBody     types.String `tfsdk:"request_body"`
 	ResponseHeaders types.Map    `tfsdk:"response_headers"`
 	ResponseBody    types.String `tfsdk:"response_body"`
 	Body            types.String `tfsdk:"body"`
