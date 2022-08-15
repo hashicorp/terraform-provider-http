@@ -10,12 +10,14 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-var _ tfsdk.DataSourceType = (*httpDataSourceType)(nil)
+var _ provider.DataSourceType = (*httpDataSourceType)(nil)
 
 type httpDataSourceType struct{}
 
@@ -109,15 +111,15 @@ your control should be treated as untrustworthy.`,
 	}, nil
 }
 
-func (d *httpDataSourceType) NewDataSource(context.Context, tfsdk.Provider) (tfsdk.DataSource, diag.Diagnostics) {
+func (d *httpDataSourceType) NewDataSource(context.Context, provider.Provider) (datasource.DataSource, diag.Diagnostics) {
 	return &httpDataSource{}, nil
 }
 
-var _ tfsdk.DataSource = (*httpDataSource)(nil)
+var _ datasource.DataSource = (*httpDataSource)(nil)
 
 type httpDataSource struct{}
 
-func (d *httpDataSource) Read(ctx context.Context, req tfsdk.ReadDataSourceRequest, resp *tfsdk.ReadDataSourceResponse) {
+func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var model modelV0
 	diags := req.Config.Get(ctx, &model)
 	resp.Diagnostics.Append(diags...)
