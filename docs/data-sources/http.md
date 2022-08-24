@@ -42,6 +42,22 @@ data "http" "example" {
     Accept = "application/json"
   }
 }
+
+# The following example shows how to issue an HTTP HEAD request.
+data "http" "example_head" {
+  url    = "https://checkpoint-api.hashicorp.com/v1/check/terraform"
+  method = "HEAD"
+}
+
+# The following example shows how to issue an HTTP POST request
+# supplying an optional request body.
+data "http" "example_post" {
+  url    = "https://checkpoint-api.hashicorp.com/v1/check/terraform"
+  method = "POST"
+
+  # Optional request body
+  request_body = "request body"
+}
 ```
 
 ## Usage with Postcondition
