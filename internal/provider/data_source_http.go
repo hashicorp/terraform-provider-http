@@ -12,16 +12,27 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
-	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-var _ provider.DataSourceType = (*httpDataSourceType)(nil)
+var _ datasource.DataSource = (*httpDataSource)(nil)
 
-type httpDataSourceType struct{}
+func NewHttpDataSource() datasource.DataSource {
+	return &httpDataSource{}
+}
 
-func (d *httpDataSourceType) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
+type httpDataSource struct{}
+
+func (d *httpDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	// This data source name unconventionally is equal to the provider name,
+	// but it has been named this since its inception. Changing this widely
+	// adopted data source name should only be done with strong consideration
+	// to the practitioner burden of updating it everywhere.
+	resp.TypeName = "http"
+}
+
+func (d *httpDataSource) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
 	return tfsdk.Schema{
 		Description: `
 The ` + "`http`" + ` data source makes an HTTP GET request to the given URL and exports
@@ -110,14 +121,6 @@ your control should be treated as untrustworthy.`,
 		},
 	}, nil
 }
-
-func (d *httpDataSourceType) NewDataSource(context.Context, provider.Provider) (datasource.DataSource, diag.Diagnostics) {
-	return &httpDataSource{}, nil
-}
-
-var _ datasource.DataSource = (*httpDataSource)(nil)
-
-type httpDataSource struct{}
 
 func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var model modelV0
