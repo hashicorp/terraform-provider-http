@@ -3,8 +3,10 @@ package provider
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 )
 
@@ -23,12 +25,12 @@ func (p *httpProvider) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostic
 func (p *httpProvider) Configure(context.Context, provider.ConfigureRequest, *provider.ConfigureResponse) {
 }
 
-func (p *httpProvider) GetResources(context.Context) (map[string]provider.ResourceType, diag.Diagnostics) {
-	return map[string]provider.ResourceType{}, nil
+func (p *httpProvider) Resources(context.Context) []func() resource.Resource {
+	return nil
 }
 
-func (p *httpProvider) GetDataSources(context.Context) (map[string]provider.DataSourceType, diag.Diagnostics) {
-	return map[string]provider.DataSourceType{
-		"http": &httpDataSourceType{},
-	}, nil
+func (p *httpProvider) DataSources(context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{
+		NewHttpDataSource,
+	}
 }
