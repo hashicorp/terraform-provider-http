@@ -363,7 +363,7 @@ func TestDataSource_ResponseBodyText(t *testing.T) {
 							}`, svr.URL),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "你好世界"),
-					resource.TestCheckResourceAttr("data.http.http_test", "response_body_base64_std", "5L2g5aW95LiW55WM"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body_base64", "5L2g5aW95LiW55WM"),
 				),
 			},
 		},
@@ -394,7 +394,7 @@ func TestDataSource_ResponseBodyBinary(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					// Note the replacement character in the string representation in `response_body`.
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "GIF89a\x01\x00\x01\x00�\x00\x00\x00\x00\x00\x00\x00\x00!�\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"),
-					resource.TestCheckResourceAttr("data.http.http_test", "response_body_base64_std", "R0lGODlhAQABAIAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body_base64", "R0lGODlhAQABAIAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="),
 				),
 			},
 		},

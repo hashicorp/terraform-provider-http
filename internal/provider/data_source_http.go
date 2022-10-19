@@ -96,7 +96,7 @@ your control should be treated as untrustworthy.`,
 				Computed:    true,
 			},
 
-			"response_body_base64_std": {
+			"response_body_base64": {
 				Description: "The response body encoded as base64 (standard) as defined in [RFC 4648](https://datatracker.ietf.org/doc/html/rfc4648#section-4).",
 				Type:        types.StringType,
 				Computed:    true,
@@ -195,7 +195,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	responseBody := string(bytes)
-	responseBodyBase64Std := base64.StdEncoding.EncodeToString(bytes)
+	responseBodyBase64 := base64.StdEncoding.EncodeToString(bytes)
 
 	responseHeaders := make(map[string]string)
 	for k, v := range response.Header {
@@ -215,7 +215,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	model.ID = types.String{Value: url}
 	model.ResponseHeaders = respHeadersState
 	model.ResponseBody = types.String{Value: responseBody}
-	model.ResponseBodyBase64Std = types.String{Value: responseBodyBase64Std}
+	model.ResponseBodyBase64 = types.String{Value: responseBodyBase64}
 	model.Body = types.String{Value: responseBody}
 	model.StatusCode = types.Int64{Value: int64(response.StatusCode)}
 
@@ -224,14 +224,14 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 }
 
 type modelV0 struct {
-	ID                    types.String `tfsdk:"id"`
-	URL                   types.String `tfsdk:"url"`
-	Method                types.String `tfsdk:"method"`
-	RequestHeaders        types.Map    `tfsdk:"request_headers"`
-	RequestBody           types.String `tfsdk:"request_body"`
-	ResponseHeaders       types.Map    `tfsdk:"response_headers"`
-	ResponseBody          types.String `tfsdk:"response_body"`
-	ResponseBodyBase64Std types.String `tfsdk:"response_body_base64_std"`
-	Body                  types.String `tfsdk:"body"`
-	StatusCode            types.Int64  `tfsdk:"status_code"`
+	ID                 types.String `tfsdk:"id"`
+	URL                types.String `tfsdk:"url"`
+	Method             types.String `tfsdk:"method"`
+	RequestHeaders     types.Map    `tfsdk:"request_headers"`
+	RequestBody        types.String `tfsdk:"request_body"`
+	ResponseHeaders    types.Map    `tfsdk:"response_headers"`
+	ResponseBody       types.String `tfsdk:"response_body"`
+	ResponseBodyBase64 types.String `tfsdk:"response_body_base64"`
+	Body               types.String `tfsdk:"body"`
+	StatusCode         types.Int64  `tfsdk:"status_code"`
 }
