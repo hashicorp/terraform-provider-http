@@ -2,7 +2,11 @@ package provider
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-framework-validators/schemavalidator"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"io/ioutil"
 	"mime"
 	"net/http"
@@ -104,6 +108,22 @@ your control should be treated as untrustworthy.`,
 				DeprecationMessage: "Use response_body instead",
 			},
 
+			"ca_cert_pem": {
+				Description: "Certificate data of the Certificate Authority (CA) " +
+					"in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.",
+				Type:     types.StringType,
+				Optional: true,
+				Validators: []tfsdk.AttributeValidator{
+					schemavalidator.ConflictsWith(path.MatchRoot("insecure")),
+				},
+			},
+
+			"insecure": {
+				Description: "Disables verification of the server's certificate chain and hostname. Defaults to `false`",
+				Type:        types.BoolType,
+				Optional:    true,
+			},
+
 			"response_headers": {
 				Description: `A map of response header field names and values.` +
 					` Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
@@ -139,7 +159,33 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		method = "GET"
 	}
 
-	client := &http.Client{}
+	caCertificate := model.CaCertificate
+
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{},
+	}
+
+	if !model.Insecure.IsNull() {
+		tr.TLSClientConfig.InsecureSkipVerify = model.Insecure.Value
+	}
+
+	// Use `ca_cert_pem` cert pool
+	if !caCertificate.IsNull() {
+		caCertPool := x509.NewCertPool()
+		if ok := caCertPool.AppendCertsFromPEM([]byte(caCertificate.Value)); !ok {
+			resp.Diagnostics.AddError(
+				"Error configuring TLS client",
+				"Error tls: Can't add the CA certificate to certificate pool. Only PEM encoded certificates are supported.",
+			)
+			return
+		}
+
+		tr.TLSClientConfig.RootCAs = caCertPool
+	}
+
+	client := &http.Client{
+		Transport: tr,
+	}
 
 	request, err := http.NewRequestWithContext(ctx, method, url, requestBody)
 	if err != nil {
@@ -249,6 +295,8 @@ type modelV0 struct {
 	RequestHeaders  types.Map    `tfsdk:"request_headers"`
 	RequestBody     types.String `tfsdk:"request_body"`
 	ResponseHeaders types.Map    `tfsdk:"response_headers"`
+	CaCertificate   types.String `tfsdk:"ca_cert_pem"`
+	Insecure        types.Bool   `tfsdk:"insecure"`
 	ResponseBody    types.String `tfsdk:"response_body"`
 	Body            types.String `tfsdk:"body"`
 	StatusCode      types.Int64  `tfsdk:"status_code"`

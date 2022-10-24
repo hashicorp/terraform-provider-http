@@ -1,17 +1,20 @@
 package provider
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestDataSource_200(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
+	testHttpMock := setUpMockHttpServer(false)
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
@@ -35,7 +38,7 @@ func TestDataSource_200(t *testing.T) {
 }
 
 func TestDataSource_404(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
+	testHttpMock := setUpMockHttpServer(false)
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
@@ -56,7 +59,7 @@ func TestDataSource_404(t *testing.T) {
 }
 
 func TestDataSource_withAuthorizationRequestHeader_200(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
+	testHttpMock := setUpMockHttpServer(false)
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
@@ -81,7 +84,7 @@ func TestDataSource_withAuthorizationRequestHeader_200(t *testing.T) {
 }
 
 func TestDataSource_withAuthorizationRequestHeader_403(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
+	testHttpMock := setUpMockHttpServer(false)
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
@@ -106,7 +109,7 @@ func TestDataSource_withAuthorizationRequestHeader_403(t *testing.T) {
 }
 
 func TestDataSource_utf8_200(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
+	testHttpMock := setUpMockHttpServer(false)
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
@@ -128,7 +131,7 @@ func TestDataSource_utf8_200(t *testing.T) {
 }
 
 func TestDataSource_utf16_200(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
+	testHttpMock := setUpMockHttpServer(false)
 	defer testHttpMock.server.Close()
 
 	resource.UnitTest(t, resource.TestCase{
@@ -174,7 +177,7 @@ func TestDataSource_utf16_200(t *testing.T) {
 //}
 
 func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
+	testHttpMock := setUpMockHttpServer(false)
 	defer testHttpMock.server.Close()
 
 	resource.Test(t, resource.TestCase{
@@ -276,7 +279,7 @@ func TestDataSource_Provisioner(t *testing.T) {
 }
 
 func TestDataSource_POST_201(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
+	testHttpMock := setUpMockHttpServer(false)
 
 	defer testHttpMock.server.Close()
 
@@ -299,7 +302,7 @@ func TestDataSource_POST_201(t *testing.T) {
 }
 
 func TestDataSource_HEAD_204(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
+	testHttpMock := setUpMockHttpServer(false)
 
 	defer testHttpMock.server.Close()
 
@@ -325,7 +328,7 @@ func TestDataSource_HEAD_204(t *testing.T) {
 }
 
 func TestDataSource_UnsupportedMethod(t *testing.T) {
-	testHttpMock := setUpMockHttpServer()
+	testHttpMock := setUpMockHttpServer(false)
 
 	defer testHttpMock.server.Close()
 
@@ -344,57 +347,202 @@ func TestDataSource_UnsupportedMethod(t *testing.T) {
 	})
 }
 
+func TestDataSource_WithCACertificate(t *testing.T) {
+	testHttpMock := setUpMockHttpServer(true)
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+  								url = "%s/200"
+
+  								ca_cert_pem = <<EOF
+%s
+EOF
+							}`, testHttpMock.server.URL, CertToPEM(testHttpMock.server.Certificate())),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_WithCACertificateFalse(t *testing.T) {
+	testHttpMock := setUpMockHttpServer(true)
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+  								url = "%s/200"
+
+  								ca_cert_pem = "invalid"
+							}`, testHttpMock.server.URL),
+				ExpectError: regexp.MustCompile(`Can't add the CA certificate to certificate pool. Only PEM encoded\ncertificates are supported.`),
+			},
+		},
+	})
+}
+
+func TestDataSource_InsecureTrue(t *testing.T) {
+	testHttpMock := setUpMockHttpServer(true)
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+  								url = "%s/200"
+
+  								insecure = true
+							}`, testHttpMock.server.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_InsecureFalse(t *testing.T) {
+	testHttpMock := setUpMockHttpServer(true)
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+  								url = "%s/200"
+
+  								insecure = false
+							}`, testHttpMock.server.URL),
+				ExpectError: regexp.MustCompile(fmt.Sprintf(`Error making request: Get "%s/200": x509: `, testHttpMock.server.URL)),
+			},
+		},
+	})
+}
+
+func TestDataSource_InsecureUnconfigured(t *testing.T) {
+	testHttpMock := setUpMockHttpServer(true)
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+  								url = "%s/200"
+							}`, testHttpMock.server.URL),
+				ExpectError: regexp.MustCompile(fmt.Sprintf(`Error making request: Get "%s/200": x509: `, testHttpMock.server.URL)),
+			},
+		},
+	})
+}
+
+func TestDataSource_UnsupportedInsecureCaCert(t *testing.T) {
+	testHttpMock := setUpMockHttpServer(true)
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+ 								url = "%s/200"
+								insecure = true
+								ca_cert_pem = "invalid"
+							}`, testHttpMock.server.URL),
+				ExpectError: regexp.MustCompile(`Attribute "insecure" cannot be specified when "ca_cert_pem" is specified`),
+			},
+		},
+	})
+}
+
 type TestHttpMock struct {
 	server *httptest.Server
 }
 
-func setUpMockHttpServer() *TestHttpMock {
-	Server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "text/plain")
-			w.Header().Add("X-Single", "foobar")
-			w.Header().Add("X-Double", "1")
-			w.Header().Add("X-Double", "2")
+func setUpMockHttpServer(tls bool) *TestHttpMock {
+	var Server *httptest.Server
 
-			switch r.URL.Path {
-			case "/200":
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte("1.0.0"))
-			case "/restricted":
-				if r.Header.Get("Authorization") == "Zm9vOmJhcg==" {
-					w.WriteHeader(http.StatusOK)
-					_, _ = w.Write([]byte("1.0.0"))
-				} else {
-					w.WriteHeader(http.StatusForbidden)
-				}
-			case "/utf-8/200":
-				w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte("1.0.0"))
-			case "/utf-16/200":
-				w.Header().Set("Content-Type", "application/json; charset=UTF-16")
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte("1.0.0"))
-			case "/x509-ca-cert/200":
-				w.Header().Set("Content-Type", "application/x-x509-ca-cert")
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write([]byte("pem"))
-			case "/create":
-				if r.Method == "POST" {
-					w.WriteHeader(http.StatusCreated)
-					_, _ = w.Write([]byte("created"))
-				}
-			case "/head":
-				if r.Method == "HEAD" {
-					w.WriteHeader(http.StatusOK)
-				}
-			default:
-				w.WriteHeader(http.StatusNotFound)
-			}
-		}),
-	)
+	if tls {
+		Server = httptest.NewTLSServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				httpReqHandler(w, r)
+			}),
+		)
+	} else {
+		Server = httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				httpReqHandler(w, r)
+			}),
+		)
+	}
 
 	return &TestHttpMock{
 		server: Server,
 	}
+}
+
+func httpReqHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Add("X-Single", "foobar")
+	w.Header().Add("X-Double", "1")
+	w.Header().Add("X-Double", "2")
+
+	switch r.URL.Path {
+	case "/200":
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("1.0.0"))
+	case "/restricted":
+		if r.Header.Get("Authorization") == "Zm9vOmJhcg==" {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("1.0.0"))
+		} else {
+			w.WriteHeader(http.StatusForbidden)
+		}
+	case "/utf-8/200":
+		w.Header().Set("Content-Type", "text/plain; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("1.0.0"))
+	case "/utf-16/200":
+		w.Header().Set("Content-Type", "application/json; charset=UTF-16")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("1.0.0"))
+	case "/x509-ca-cert/200":
+		w.Header().Set("Content-Type", "application/x-x509-ca-cert")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("pem"))
+	case "/create":
+		if r.Method == "POST" {
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte("created"))
+		}
+	case "/head":
+		if r.Method == "HEAD" {
+			w.WriteHeader(http.StatusOK)
+		}
+	default:
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+// CertToPEM is a utility function returns a PEM encoded x509 Certificate.
+func CertToPEM(cert *x509.Certificate) string {
+	certPem := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+
+	return strings.Trim(certPem, "\n")
 }
