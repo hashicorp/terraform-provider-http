@@ -5,13 +5,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-framework-validators/schemavalidator"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"io/ioutil"
 	"mime"
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/hashicorp/terraform-plugin-framework-validators/schemavalidator"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -150,10 +151,10 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	url := model.URL.Value
-	method := model.Method.Value
+	url := model.URL.ValueString()
+	method := model.Method.ValueString()
 	requestHeaders := model.RequestHeaders
-	requestBody := strings.NewReader(model.RequestBody.Value)
+	requestBody := strings.NewReader(model.RequestBody.ValueString())
 
 	if method == "" {
 		method = "GET"
@@ -166,13 +167,13 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	if !model.Insecure.IsNull() {
-		tr.TLSClientConfig.InsecureSkipVerify = model.Insecure.Value
+		tr.TLSClientConfig.InsecureSkipVerify = model.Insecure.ValueBool()
 	}
 
 	// Use `ca_cert_pem` cert pool
 	if !caCertificate.IsNull() {
 		caCertPool := x509.NewCertPool()
-		if ok := caCertPool.AppendCertsFromPEM([]byte(caCertificate.Value)); !ok {
+		if ok := caCertPool.AppendCertsFromPEM([]byte(caCertificate.ValueString())); !ok {
 			resp.Diagnostics.AddError(
 				"Error configuring TLS client",
 				"Error tls: Can't add the CA certificate to certificate pool. Only PEM encoded certificates are supported.",
@@ -196,7 +197,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	for name, value := range requestHeaders.Elems {
+	for name, value := range requestHeaders.Elements() {
 		var header string
 		diags = tfsdk.ValueAs(ctx, value, &header)
 		resp.Diagnostics.Append(diags...)
@@ -244,19 +245,17 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		responseHeaders[k] = strings.Join(v, ", ")
 	}
 
-	respHeadersState := types.Map{}
-
-	diags = tfsdk.ValueFrom(ctx, responseHeaders, types.Map{ElemType: types.StringType}.Type(ctx), &respHeadersState)
+	respHeadersState, diags := types.MapValueFrom(ctx, types.StringType, responseHeaders)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	model.ID = types.String{Value: url}
+	model.ID = types.StringValue(url)
 	model.ResponseHeaders = respHeadersState
-	model.ResponseBody = types.String{Value: responseBody}
-	model.Body = types.String{Value: responseBody}
-	model.StatusCode = types.Int64{Value: int64(response.StatusCode)}
+	model.ResponseBody = types.StringValue(responseBody)
+	model.Body = types.StringValue(responseBody)
+	model.StatusCode = types.Int64Value(int64(response.StatusCode))
 
 	diags = resp.State.Set(ctx, model)
 	resp.Diagnostics.Append(diags...)
