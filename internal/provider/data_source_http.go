@@ -245,9 +245,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		responseHeaders[k] = strings.Join(v, ", ")
 	}
 
-	respHeadersState := types.Map{}
-
-	diags = tfsdk.ValueFrom(ctx, responseHeaders, types.MapNull(types.StringType).Type(ctx), &respHeadersState)
+	respHeadersState, diags := types.MapValueFrom(ctx, types.StringType, responseHeaders)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return
