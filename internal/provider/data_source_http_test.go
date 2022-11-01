@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/elazarl/goproxy"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
@@ -466,6 +467,36 @@ func TestDataSource_UnsupportedInsecureCaCert(t *testing.T) {
 								ca_cert_pem = "invalid"
 							}`, testHttpMock.server.URL),
 				ExpectError: regexp.MustCompile(`Attribute "insecure" cannot be specified when "ca_cert_pem" is specified`),
+			},
+		},
+	})
+}
+
+func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer svr.Close()
+
+	p := goproxy.NewProxyHttpServer()
+
+	proxy := httptest.NewServer(p)
+	defer proxy.Close()
+
+	t.Setenv("HTTP_PROXY", proxy.URL)
+	t.Setenv("HTTPS_PROXY", proxy.URL)
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					data "http" "http_test" {
+						url = "%s"
+					}
+				`, svr.URL),
+				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
 			},
 		},
 	})

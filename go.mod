@@ -3,6 +3,7 @@ module github.com/terraform-providers/terraform-provider-http
 go 1.18
 
 require (
+	github.com/elazarl/goproxy v0.0.0-20221015165544-a0805db90819
 	github.com/hashicorp/terraform-plugin-docs v0.13.0
 	github.com/hashicorp/terraform-plugin-framework v0.15.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.5.0

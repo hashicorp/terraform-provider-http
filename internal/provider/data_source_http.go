@@ -163,6 +163,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	caCertificate := model.CaCertificate
 
 	tr := &http.Transport{
+		Proxy:           http.ProxyFromEnvironment,
 		TLSClientConfig: &tls.Config{},
 	}
 
