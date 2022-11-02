@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/elazarl/goproxy"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+
+	"github.com/terraform-providers/terraform-provider-http/internal/provider/testutils"
 )
 
 func TestDataSource_200(t *testing.T) {
@@ -473,18 +474,24 @@ func TestDataSource_UnsupportedInsecureCaCert(t *testing.T) {
 }
 
 func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
-	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer svr.Close()
+	server, err := testutils.NewHTTPServer()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	p := goproxy.NewProxyHttpServer()
+	defer server.Close()
+	go server.ServeTLS()
 
-	proxy := httptest.NewServer(p)
+	proxy, err := testutils.NewHTTPProxyServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer proxy.Close()
+	go proxy.Serve()
 
-	t.Setenv("HTTP_PROXY", proxy.URL)
-	t.Setenv("HTTPS_PROXY", proxy.URL)
+	t.Setenv("HTTP_PROXY", fmt.Sprintf("http://%s", proxy.Address()))
+	t.Setenv("HTTPS_PROXY", fmt.Sprintf("http://%s", proxy.Address()))
 
 	resource.UnitTest(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
@@ -493,10 +500,14 @@ func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
 			{
 				Config: fmt.Sprintf(`
 					data "http" "http_test" {
-						url = "%s"
+						url = "https://%s"
+						insecure = "true"
 					}
-				`, svr.URL),
-				Check: resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				`, server.Address()),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+					testutils.TestCheckBothServerAndProxyWereUsed(server, proxy, 3, 1),
+				),
 			},
 		},
 	})

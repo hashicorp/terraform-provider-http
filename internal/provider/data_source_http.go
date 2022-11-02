@@ -162,10 +162,16 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	caCertificate := model.CaCertificate
 
-	tr := &http.Transport{
-		Proxy:           http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config{},
+	tr, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Error configuring http transport",
+			"Error http: Can't configure http transport.",
+		)
+		return
 	}
+
+	tr.TLSClientConfig = &tls.Config{}
 
 	if !model.Insecure.IsNull() {
 		tr.TLSClientConfig.InsecureSkipVerify = model.Insecure.ValueBool()
