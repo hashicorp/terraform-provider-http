@@ -506,7 +506,7 @@ func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
 				`, server.Address()),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
-					testutils.TestCheckBothServerAndProxyWereUsed(server, proxy, 3, 1),
+					testutils.TestCheckBothServerAndProxyWereUsed(server, proxy),
 				),
 			},
 		},

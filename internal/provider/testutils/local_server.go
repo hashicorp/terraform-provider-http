@@ -109,19 +109,10 @@ func (lst *LocalServerTest) ConnClosed() int {
 	return lst.connClosed
 }
 
-// TestCheckBothServerAndProxyWereUsed accepts expected count for server and proxy connections because using the
-// http.DefaultTransport results in different behaviour than using http.Transport with Proxy set to ProxyFromEnvironment.
-// Using http.Transport and Proxy set to ProxyFromEnvironment results in equivalent numbers of server and proxy active
-// connections whereas the http.DefaultTransport results in different numbers of server and proxy active connections.
-// These differences seem to arise, at least in part, from the ForceAttemptHTTP2 field on the http.DefaultTransport
-// being set to true.
-func TestCheckBothServerAndProxyWereUsed(server, proxy *LocalServerTest, serverConnActive, proxyConnActive int) r.TestCheckFunc {
+func TestCheckBothServerAndProxyWereUsed(server, proxy *LocalServerTest) r.TestCheckFunc {
 	return func(_ *terraform.State) error {
-		if server.ConnActivated() != serverConnActive {
-			return fmt.Errorf("expected server active connection count mismatch: server was %d, while expected was %d", server.ConnActivated(), serverConnActive)
-		}
-		if proxy.ConnActivated() != proxyConnActive {
-			return fmt.Errorf("expected proxy active connection count mismatch: proxy was %d, while expected was %d", proxy.ConnActivated(), proxyConnActive)
+		if server.ConnActivated() != proxy.ConnActivated() {
+			return fmt.Errorf("expected server and proxy active connection count to match: server was %d, while proxy was %d", server.ConnActivated(), proxy.ConnActivated())
 		}
 		if server.ConnClosed() != proxy.ConnClosed() {
 			return fmt.Errorf("expected server and proxy closed connection count to match: server was %d, while proxy was %d", server.ConnClosed(), proxy.ConnClosed())
