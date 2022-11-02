@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/terraform-plugin-framework-validators/schemavalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 
@@ -164,16 +163,14 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	caCertificate := model.CaCertificate
 
-	//tr, ok := http.DefaultTransport.(*http.Transport)
-	//if !ok {
-	//	resp.Diagnostics.AddError(
-	//		"Error configuring http transport",
-	//		"Error http: Can't configure http transport.",
-	//	)
-	//	return
-	//}
-
-	tr := cleanhttp.DefaultTransport()
+	tr, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Error configuring http transport",
+			"Error http: Can't configure http transport.",
+		)
+		return
+	}
 
 	fmt.Printf("HTTP_PROXY = %s\n", os.Getenv("HTTP_PROXY"))
 	fmt.Printf("HTTPS_PROXY = %s\n", os.Getenv("HTTPS_PROXY"))
