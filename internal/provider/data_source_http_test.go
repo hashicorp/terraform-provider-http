@@ -32,7 +32,7 @@ func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
 	fmt.Printf("proxy address = %s\n", proxy.Address())
 	fmt.Printf("server address = %s\n", server.Address())
 
-	resource.UnitTest(t, resource.TestCase{
+	resource.Test(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 
 		Steps: []resource.TestStep{
