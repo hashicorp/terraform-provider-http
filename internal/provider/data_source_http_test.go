@@ -22,34 +22,42 @@ func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
 	pReqPtr := &proxyRequests
 	sReqPtr := &serverRequests
 
-	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Content-Type is set to text/plain otherwise the http data source issues a warning which
+	// causes Terraform 0.14 to not write any data to state.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		*sReqPtr++
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	defer backend.Close()
+	defer server.Close()
 
-	backendURLStr := strings.Replace(backend.URL, "127.0.0.1", "backend", -1)
-	backendURL, err := url.Parse(backendURLStr)
+	// Neither localhost nor the loopback interface (127.0.0.1) can be used for the
+	// address of the server as httpproxy/proxy.go will ignore these addresses. See
+	// https://cs.opensource.google/go/x/net/+/internal-branch.go1.19-vendor:http/httpproxy/proxy.go;l=181
+	// https://cs.opensource.google/go/x/net/+/internal-branch.go1.19-vendor:http/httpproxy/proxy.go;l=186
+	serverURLStr := strings.Replace(server.URL, "127.0.0.1", "server", -1)
+	serverURL, err := url.Parse(serverURLStr)
 	if err != nil {
-		t.Fatal(err)
+		t.Error(err)
 	}
 
+	// The URL is intercepted and modified so that requests received by the proxy are forwarded to
+	// the loopback interface (127.0.0.1).
 	proxy := func(u *url.URL) http.Handler {
-		pBackendURLStr := strings.Replace(u.String(), "backend", "127.0.0.1", -1)
-		pBackendURL, err := url.Parse(pBackendURLStr)
+		pServerURLStr := strings.Replace(u.String(), "server", "127.0.0.1", -1)
+		pServerURL, err := url.Parse(pServerURLStr)
 		if err != nil {
-			t.Fatal(err)
+			t.Error(err)
 		}
 
-		p := httputil.NewSingleHostReverseProxy(pBackendURL)
+		p := httputil.NewSingleHostReverseProxy(pServerURL)
 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			*pReqPtr++
 			p.ServeHTTP(w, r)
 		})
-	}(backendURL)
+	}(serverURL)
 
 	frontend := httptest.NewServer(proxy)
 	defer frontend.Close()
@@ -67,7 +75,7 @@ func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
 						url = "%s"
 						insecure = "true"
 					}
-				`, backendURLStr),
+				`, serverURLStr),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
 					CheckServerAndProxyRequestCount(pReqPtr, sReqPtr),
