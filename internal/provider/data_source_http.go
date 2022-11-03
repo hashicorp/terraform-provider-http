@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 
@@ -163,21 +162,14 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	caCertificate := model.CaCertificate
 
-	//tr, ok := http.DefaultTransport.(*http.Transport)
-	//if !ok {
-	//	resp.Diagnostics.AddError(
-	//		"Error configuring http transport",
-	//		"Error http: Can't configure http transport.",
-	//	)
-	//	return
-	//}
-
-	tr := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
+	tr, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Error configuring http transport",
+			"Error http: Can't configure http transport.",
+		)
+		return
 	}
-
-	fmt.Printf("HTTP_PROXY = %s\n", os.Getenv("HTTP_PROXY"))
-	fmt.Printf("HTTPS_PROXY = %s\n", os.Getenv("HTTPS_PROXY"))
 
 	tr.TLSClientConfig = &tls.Config{}
 
