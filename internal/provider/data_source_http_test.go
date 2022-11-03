@@ -21,7 +21,7 @@ func TestDataSource_HTTPViaProxyWithEnv___(t *testing.T) {
 
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		*sReqPtr++
-		w.Header().Set("Content-Type", "text-plain")
+		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
 	}))
 
