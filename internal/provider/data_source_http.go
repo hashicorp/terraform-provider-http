@@ -8,11 +8,13 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/schemavalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
+	"golang.org/x/net/http/httpproxy"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -151,7 +153,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	url := model.URL.ValueString()
+	requestURL := model.URL.ValueString()
 	method := model.Method.ValueString()
 	requestHeaders := model.RequestHeaders
 	requestBody := strings.NewReader(model.RequestBody.ValueString())
@@ -169,6 +171,11 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 			"Error http: Can't configure http transport.",
 		)
 		return
+	}
+
+	// Prevent issues with tests caching the proxy configuration.
+	tr.Proxy = func(req *http.Request) (*url.URL, error) {
+		return httpproxy.FromEnvironment().ProxyFunc()(req.URL)
 	}
 
 	tr.TLSClientConfig = &tls.Config{}
@@ -195,7 +202,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		Transport: tr,
 	}
 
-	request, err := http.NewRequestWithContext(ctx, method, url, requestBody)
+	request, err := http.NewRequestWithContext(ctx, method, requestURL, requestBody)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating request",
@@ -258,7 +265,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	model.ID = types.StringValue(url)
+	model.ID = types.StringValue(requestURL)
 	model.ResponseHeaders = respHeadersState
 	model.ResponseBody = types.StringValue(responseBody)
 	model.Body = types.StringValue(responseBody)

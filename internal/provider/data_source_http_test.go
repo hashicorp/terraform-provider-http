@@ -16,85 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
-	proxyRequests := 0
-	serverRequests := 0
-	pReqPtr := &proxyRequests
-	sReqPtr := &serverRequests
-
-	// Content-Type is set to text/plain otherwise the http data source issues a warning which
-	// causes Terraform 0.14 to not write any data to state.
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		*sReqPtr++
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	defer server.Close()
-
-	// Neither localhost nor the loopback interface (127.0.0.1) can be used for the
-	// address of the server as httpproxy/proxy.go will ignore these addresses. See
-	// https://cs.opensource.google/go/x/net/+/internal-branch.go1.19-vendor:http/httpproxy/proxy.go;l=181
-	// https://cs.opensource.google/go/x/net/+/internal-branch.go1.19-vendor:http/httpproxy/proxy.go;l=186
-	serverURLStr := strings.Replace(server.URL, "127.0.0.1", "server", -1)
-	serverURL, err := url.Parse(serverURLStr)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// The URL is intercepted and modified so that requests received by the proxy are forwarded to
-	// the loopback interface (127.0.0.1).
-	proxy := func(u *url.URL) http.Handler {
-		pServerURLStr := strings.Replace(u.String(), "server", "127.0.0.1", -1)
-		pServerURL, err := url.Parse(pServerURLStr)
-		if err != nil {
-			t.Error(err)
-		}
-
-		p := httputil.NewSingleHostReverseProxy(pServerURL)
-
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			*pReqPtr++
-			p.ServeHTTP(w, r)
-		})
-	}(serverURL)
-
-	frontend := httptest.NewServer(proxy)
-	defer frontend.Close()
-
-	t.Setenv("HTTP_PROXY", frontend.URL)
-	t.Setenv("HTTPS_PROXY", frontend.URL)
-
-	resource.UnitTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
-
-		Steps: []resource.TestStep{
-			{
-				Config: fmt.Sprintf(`
-					data "http" "http_test" {
-						url = "%s"
-						insecure = "true"
-					}
-				`, serverURLStr),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
-					CheckServerAndProxyRequestCount(pReqPtr, sReqPtr),
-				),
-			},
-		},
-	})
-}
-
-func CheckServerAndProxyRequestCount(proxyRequestCount, serverRequestCount *int) resource.TestCheckFunc {
-	return func(_ *terraform.State) error {
-		if *proxyRequestCount != *serverRequestCount {
-			return fmt.Errorf("expected proxy and server request count to match: proxy was %d, while server was %d", *proxyRequestCount, *serverRequestCount)
-		}
-
-		return nil
-	}
-}
-
 func TestDataSource_200(t *testing.T) {
 	testHttpMock := setUpMockHttpServer(false)
 	defer testHttpMock.server.Close()
@@ -551,6 +472,75 @@ func TestDataSource_UnsupportedInsecureCaCert(t *testing.T) {
 			},
 		},
 	})
+}
+
+// testProxiedURL is a hardcoded URL used in acceptance testing where it is
+// expected that a locally started HTTP proxy will handle the request.
+//
+// Neither localhost nor the loopback interface (127.0.0.1) can be used for the
+// address of the server as httpproxy/proxy.go will ignore these addresses.
+//
+// References:
+//   - https://cs.opensource.google/go/x/net/+/internal-branch.go1.19-vendor:http/httpproxy/proxy.go;l=181
+//   - https://cs.opensource.google/go/x/net/+/internal-branch.go1.19-vendor:http/httpproxy/proxy.go;l=186
+const testProxiedURL = "http://terraform-provider-http-test-proxy"
+
+func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
+	proxyRequests := 0
+	serverRequests := 0
+
+	// Content-Type is set to text/plain otherwise the http data source issues a warning which
+	// causes Terraform 0.14 to not write any data to state.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serverRequests++
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	defer server.Close()
+
+	serverURL, err := url.Parse(server.URL)
+
+	if err != nil {
+		t.Fatalf("error parsing server URL: %s", err)
+	}
+
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyRequests++
+		httputil.NewSingleHostReverseProxy(serverURL).ServeHTTP(w, r)
+	}))
+	defer proxy.Close()
+
+	t.Setenv("HTTP_PROXY", proxy.URL)
+	t.Setenv("HTTPS_PROXY", proxy.URL)
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					data "http" "http_test" {
+						url = "%s"
+					}
+				`, testProxiedURL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+					CheckServerAndProxyRequestCount(&proxyRequests, &serverRequests),
+				),
+			},
+		},
+	})
+}
+
+func CheckServerAndProxyRequestCount(proxyRequestCount, serverRequestCount *int) resource.TestCheckFunc {
+	return func(_ *terraform.State) error {
+		if *proxyRequestCount != *serverRequestCount {
+			return fmt.Errorf("expected proxy and server request count to match: proxy was %d, while server was %d", *proxyRequestCount, *serverRequestCount)
+		}
+
+		return nil
+	}
 }
 
 type TestHttpMock struct {
