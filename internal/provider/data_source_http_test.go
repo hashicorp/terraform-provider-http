@@ -14,12 +14,16 @@ import (
 )
 
 func TestDataSource_HTTPViaProxyWithEnv___(t *testing.T) {
-	var backendCount, proxyCount int
+	proxyRequests := 0
+	serverRequests := 0
+	pReqPtr := &proxyRequests
+	sReqPtr := &serverRequests
 
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		backendCount++
+		*sReqPtr++
 		w.WriteHeader(http.StatusOK)
 	}))
+
 	defer backend.Close()
 
 	backendURLStr := strings.Replace(backend.URL, "127.0.0.1", "backend", -1)
@@ -36,8 +40,9 @@ func TestDataSource_HTTPViaProxyWithEnv___(t *testing.T) {
 		}
 
 		p := httputil.NewSingleHostReverseProxy(pBackendURL)
+
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			proxyCount++
+			*pReqPtr++
 			p.ServeHTTP(w, r)
 		})
 	}(backendURL)
@@ -61,17 +66,17 @@ func TestDataSource_HTTPViaProxyWithEnv___(t *testing.T) {
 				`, backendURLStr),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
-					CheckServerAndProxyRequestCount(proxyCount, backendCount),
+					CheckServerAndProxyRequestCount(pReqPtr, sReqPtr),
 				),
 			},
 		},
 	})
 }
 
-func CheckServerAndProxyRequestCount(proxyRequestCount, serverRequestCount int) resource.TestCheckFunc {
+func CheckServerAndProxyRequestCount(proxyRequestCount, serverRequestCount *int) resource.TestCheckFunc {
 	return func(_ *terraform.State) error {
-		if proxyRequestCount == serverRequestCount {
-			return fmt.Errorf("expected proxy and server request count to match: proxy was %d, while server was %d", proxyRequestCount, serverRequestCount)
+		if *proxyRequestCount != *serverRequestCount {
+			return fmt.Errorf("expected proxy and server request count to match: proxy was %d, while server was %d", *proxyRequestCount, *serverRequestCount)
 		}
 
 		return nil
