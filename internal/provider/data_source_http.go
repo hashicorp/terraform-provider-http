@@ -13,14 +13,13 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/schemavalidator"
-	"github.com/hashicorp/terraform-plugin-framework/path"
-	"golang.org/x/net/http/httpproxy"
-
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"golang.org/x/net/http/httpproxy"
 )
 
 var _ datasource.DataSource = (*httpDataSource)(nil)
@@ -173,15 +172,20 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
+	// Prevent issues with tests modifying shared transport.
+	clonedTr := tr.Clone()
+
 	// Prevent issues with tests caching the proxy configuration.
-	tr.Proxy = func(req *http.Request) (*url.URL, error) {
+	clonedTr.Proxy = func(req *http.Request) (*url.URL, error) {
 		return httpproxy.FromEnvironment().ProxyFunc()(req.URL)
 	}
 
-	tr.TLSClientConfig = &tls.Config{}
+	if clonedTr.TLSClientConfig == nil {
+		clonedTr.TLSClientConfig = &tls.Config{}
+	}
 
 	if !model.Insecure.IsNull() {
-		tr.TLSClientConfig.InsecureSkipVerify = model.Insecure.ValueBool()
+		clonedTr.TLSClientConfig.InsecureSkipVerify = model.Insecure.ValueBool()
 	}
 
 	// Use `ca_cert_pem` cert pool
@@ -195,11 +199,11 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 			return
 		}
 
-		tr.TLSClientConfig.RootCAs = caCertPool
+		clonedTr.TLSClientConfig.RootCAs = caCertPool
 	}
 
 	client := &http.Client{
-		Transport: tr,
+		Transport: clonedTr,
 	}
 
 	request, err := http.NewRequestWithContext(ctx, method, requestURL, requestBody)
