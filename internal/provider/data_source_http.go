@@ -172,7 +172,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	// Prevent issues with tests modifying shared transport.
+	// Prevent issues with multiple data source configurations modifying the shared transport.
 	clonedTr := tr.Clone()
 
 	// Prevent issues with tests caching the proxy configuration.
@@ -185,6 +185,9 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	if !model.Insecure.IsNull() {
+		if clonedTr.TLSClientConfig == nil {
+			clonedTr.TLSClientConfig = &tls.Config{}
+		}
 		clonedTr.TLSClientConfig.InsecureSkipVerify = model.Insecure.ValueBool()
 	}
 
@@ -199,6 +202,9 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 			return
 		}
 
+		if clonedTr.TLSClientConfig == nil {
+			clonedTr.TLSClientConfig = &tls.Config{}
+		}
 		clonedTr.TLSClientConfig.RootCAs = caCertPool
 	}
 
