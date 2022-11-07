@@ -1,3 +1,9 @@
+## 3.2.1 (unreleased)
+
+BUG FIXES
+
+* data-source/http: Using DefaultTransport to reinstate previous behavior (e.g., ProxyFromEnvironment) ([#198](https://github.com/hashicorp/terraform-provider-http/pull/198)).
+
 ## 3.2.0 (October 31, 2022)
 
 ENHANCEMENTS:
