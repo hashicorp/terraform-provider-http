@@ -1,4 +1,4 @@
-## 3.2.1 (unreleased)
+## 3.2.1 (November 7, 2022)
 
 BUG FIXES
 
