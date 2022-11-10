@@ -293,7 +293,7 @@ func TestDataSource_POST_201(t *testing.T) {
 				Config: fmt.Sprintf(`
 							data "http" "http_test" {
  								url = "%s/create"
-								method = "POST" 
+								method = "POST"
 							}`, testHttpMock.server.URL),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "created"),
@@ -316,7 +316,7 @@ func TestDataSource_HEAD_204(t *testing.T) {
 				Config: fmt.Sprintf(`
 							data "http" "http_test" {
  								url = "%s/head"
-								method = "HEAD" 
+								method = "HEAD"
 							}`, testHttpMock.server.URL),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
@@ -342,7 +342,7 @@ func TestDataSource_UnsupportedMethod(t *testing.T) {
 				Config: fmt.Sprintf(`
 							data "http" "http_test" {
  								url = "%s/200"
-								method = "OPTIONS" 
+								method = "OPTIONS"
 							}`, testHttpMock.server.URL),
 				ExpectError: regexp.MustCompile(`.*value must be one of: \["\\"GET\\"" "\\"POST\\"" "\\"HEAD\\""`),
 			},
@@ -541,6 +541,29 @@ func CheckServerAndProxyRequestCount(proxyRequestCount, serverRequestCount *int)
 
 		return nil
 	}
+}
+
+func TestDataSource_Retry(t *testing.T) {
+	testHttpMock := setUpMockHttpServer(false)
+	defer testHttpMock.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s/200"
+
+								retry_attempts = 1
+								retry_delay = 0
+							}`, testHttpMock.server.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
 }
 
 type TestHttpMock struct {

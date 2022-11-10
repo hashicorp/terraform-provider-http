@@ -11,7 +11,9 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -19,6 +21,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/net/http/httpproxy"
 )
 
@@ -46,7 +49,7 @@ information about the response.
 
 The given URL may be either an ` + "`http`" + ` or ` + "`https`" + ` URL. At present this resource
 can only retrieve data from URLs that respond with ` + "`text/*`" + ` or
-` + "`application/json`" + ` content types, and expects the result to be UTF-8 encoded
+` + "`application/json`" + ` content types/usr/local/bin/terraform, and expects the result to be UTF-8 encoded
 regardless of the returned content type header.
 
 ~> **Important** Although ` + "`https`" + ` URLs can be used, there is currently no
@@ -127,6 +130,16 @@ your control should be treated as untrustworthy.`,
 				Description: `The HTTP response status code.`,
 				Computed:    true,
 			},
+
+			"retry_attempts": schema.Int64Attribute{
+				Description: `Number of retry attempts.`,
+				Optional:    true,
+			},
+
+			"retry_delay": schema.Int64Attribute{
+				Description: `NDelay in seconds between each retry attempts.`,
+				Optional:    true,
+			},
 		},
 	}
 }
@@ -197,6 +210,25 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	client := &http.Client{
 		Transport: clonedTr,
+	}
+
+	// Override http client with retry logic if specified
+	if !model.RetryAttempts.IsNull() && !model.RetryAttempts.IsUnknown() {
+		tflog.Debug(ctx, "HEY COUCOU TOI")
+		tflog.Debug(ctx, fmt.Sprintf("RETRY: %d %d", model.RetryAttempts.ValueInt64(), model.RetryDelay.ValueInt64()))
+		retryClient := retryablehttp.NewClient()
+		retryClient.HTTPClient.Transport = clonedTr
+		retryClient.RetryMax = int(model.RetryAttempts.ValueInt64())
+
+		delay := 0
+		if !model.RetryDelay.IsNull() && !model.RetryDelay.IsUnknown() {
+			delay = int(model.RetryDelay.ValueInt64())
+		}
+
+		retryClient.RetryWaitMin = time.Duration(delay) * time.Second
+		retryClient.RetryWaitMax = retryClient.RetryWaitMin
+		tflog.Debug(ctx, fmt.Sprintf("CLIENT: %d %d %d", retryClient.RetryMax, retryClient.RetryWaitMin, retryClient.RetryWaitMax))
+		client = retryClient.StandardClient()
 	}
 
 	request, err := http.NewRequestWithContext(ctx, method, requestURL, requestBody)
@@ -310,4 +342,6 @@ type modelV0 struct {
 	ResponseBody    types.String `tfsdk:"response_body"`
 	Body            types.String `tfsdk:"body"`
 	StatusCode      types.Int64  `tfsdk:"status_code"`
+	RetryAttempts   types.Int64  `tfsdk:"retry_attempts"`
+	RetryDelay      types.Int64  `tfsdk:"retry_delay"`
 }
