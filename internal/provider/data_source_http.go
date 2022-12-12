@@ -12,11 +12,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework-validators/schemavalidator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"golang.org/x/net/http/httpproxy"
@@ -38,8 +38,8 @@ func (d *httpDataSource) Metadata(_ context.Context, _ datasource.MetadataReques
 	resp.TypeName = "http"
 }
 
-func (d *httpDataSource) GetSchema(context.Context) (tfsdk.Schema, diag.Diagnostics) {
-	return tfsdk.Schema{
+func (d *httpDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
 		Description: `
 The ` + "`http`" + ` data source makes an HTTP GET request to the given URL and exports
 information about the response.
@@ -54,26 +54,23 @@ mechanism to authenticate the remote server except for general verification of
 the server certificate's chain of trust. Data retrieved from servers not under
 your control should be treated as untrustworthy.`,
 
-		Attributes: map[string]tfsdk.Attribute{
-			"id": {
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
 				Description: "The URL used for the request.",
-				Type:        types.StringType,
 				Computed:    true,
 			},
 
-			"url": {
+			"url": schema.StringAttribute{
 				Description: "The URL for the request. Supported schemes are `http` and `https`.",
-				Type:        types.StringType,
 				Required:    true,
 			},
 
-			"method": {
+			"method": schema.StringAttribute{
 				Description: "The HTTP Method for the request. " +
 					"Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, " +
 					"`GET`, `HEAD`, and `POST`. `POST` support is only intended for read-only URLs, such as submitting a search.",
-				Type:     types.StringType,
 				Optional: true,
-				Validators: []tfsdk.AttributeValidator{
+				Validators: []validator.String{
 					stringvalidator.OneOf([]string{
 						http.MethodGet,
 						http.MethodPost,
@@ -82,66 +79,56 @@ your control should be treated as untrustworthy.`,
 				},
 			},
 
-			"request_headers": {
+			"request_headers": schema.MapAttribute{
 				Description: "A map of request header field names and values.",
-				Type: types.MapType{
-					ElemType: types.StringType,
-				},
-				Optional: true,
-			},
-
-			"request_body": {
-				Description: "The request body as a string.",
-				Type:        types.StringType,
+				ElementType: types.StringType,
 				Optional:    true,
 			},
 
-			"response_body": {
+			"request_body": schema.StringAttribute{
+				Description: "The request body as a string.",
+				Optional:    true,
+			},
+
+			"response_body": schema.StringAttribute{
 				Description: "The response body returned as a string.",
-				Type:        types.StringType,
 				Computed:    true,
 			},
 
-			"body": {
+			"body": schema.StringAttribute{
 				Description: "The response body returned as a string. " +
 					"**NOTE**: This is deprecated, use `response_body` instead.",
-				Type:               types.StringType,
 				Computed:           true,
 				DeprecationMessage: "Use response_body instead",
 			},
 
-			"ca_cert_pem": {
+			"ca_cert_pem": schema.StringAttribute{
 				Description: "Certificate data of the Certificate Authority (CA) " +
 					"in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.",
-				Type:     types.StringType,
 				Optional: true,
-				Validators: []tfsdk.AttributeValidator{
-					schemavalidator.ConflictsWith(path.MatchRoot("insecure")),
+				Validators: []validator.String{
+					stringvalidator.ConflictsWith(path.MatchRoot("insecure")),
 				},
 			},
 
-			"insecure": {
+			"insecure": schema.BoolAttribute{
 				Description: "Disables verification of the server's certificate chain and hostname. Defaults to `false`",
-				Type:        types.BoolType,
 				Optional:    true,
 			},
 
-			"response_headers": {
+			"response_headers": schema.MapAttribute{
 				Description: `A map of response header field names and values.` +
 					` Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
-				Type: types.MapType{
-					ElemType: types.StringType,
-				},
-				Computed: true,
+				ElementType: types.StringType,
+				Computed:    true,
 			},
 
-			"status_code": {
+			"status_code": schema.Int64Attribute{
 				Description: `The HTTP response status code.`,
-				Type:        types.Int64Type,
 				Computed:    true,
 			},
 		},
-	}, nil
+	}
 }
 
 func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
