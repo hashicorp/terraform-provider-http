@@ -16,6 +16,10 @@ var _ provider.Provider = (*httpProvider)(nil)
 
 type httpProvider struct{}
 
+func (p *httpProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "http"
+}
+
 func (p *httpProvider) Schema(context.Context, provider.SchemaRequest, *provider.SchemaResponse) {
 }
 
