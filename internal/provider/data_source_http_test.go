@@ -379,21 +379,6 @@ func TestDataSource_WithClientCert(t *testing.T) {
 	s := setupMockMTLSHttpServer(t)
 	defer s.server.Close()
 
-	cadata, err := os.ReadFile("testdata/certs/ca.cert.pem")
-	if err != nil {
-		t.Fatalf("error opening ca.cert.pem: %v", err)
-	}
-
-	certdata, err := os.ReadFile("testdata/certs/client.crt")
-	if err != nil {
-		t.Fatalf("error opening client.crt: %v", err)
-	}
-
-	keydata, err := os.ReadFile("testdata/certs/client.key")
-	if err != nil {
-		t.Fatalf("error opening client.crt: %v", err)
-	}
-
 	resource.UnitTest(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		Steps: []resource.TestStep{
@@ -401,17 +386,11 @@ func TestDataSource_WithClientCert(t *testing.T) {
 				Config: fmt.Sprintf(`
 data "http" "http_test" {
   url = "%s"
-  ca_cert_pem = <<EOF
-%s
-EOF
-  client_cert_pem = <<EOF
-%s
-EOF
-  client_key_pem = <<EOF
-%s
-EOF
+  ca_cert_pem = file("testdata/certs/ca.cert.pem")
+  client_cert_pem = file("testdata/certs/client.crt")
+  client_key_pem = file("testdata/certs/client.key")
 }
-`, s.server.URL, cadata, certdata, keydata),
+`, s.server.URL),
 			},
 		},
 	})
