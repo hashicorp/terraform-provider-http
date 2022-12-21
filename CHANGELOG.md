@@ -17,7 +17,6 @@ ENHANCEMENTS:
 
 * data-source/http: Added `ca_cert_pem` attribute which allows PEM encoded certificate(s) to be included in the set of root certificate authorities used when verifying server certificates ([#125](https://github.com/hashicorp/terraform-provider-http/pull/125)).
 * data-source/http: Added `insecure` attribute to allow disabling the verification of a server's certificate chain and host name. Defaults to `false` ([#125](https://github.com/hashicorp/terraform-provider-http/pull/125)).
-=======
 
 ## 3.1.0 (August 30, 2022)
 
