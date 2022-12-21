@@ -246,10 +246,10 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		// TODO(ddelnano): Determine the appropriate fix for this
 		// This causes acceptance tests to fail on all terraform v0.14 releases and is
 		// fixed in v0.15.0-alpha20210107.
-		resp.Diagnostics.AddWarning(
-			"Response body is not recognized as UTF-8",
-			"Terraform may not properly handle the response_body if the contents are binary.",
-		)
+		// resp.Diagnostics.AddWarning(
+		// 	"Response body is not recognized as UTF-8",
+		// 	"Terraform may not properly handle the response_body if the contents are binary.",
+		// )
 	}
 
 	responseBody := string(bytes)
