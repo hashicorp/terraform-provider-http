@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -238,7 +238,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		)
 	}
 
-	bytes, err := ioutil.ReadAll(response.Body)
+	bytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error reading response body",
