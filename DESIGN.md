@@ -17,7 +17,7 @@ HTTP URLs and either [HTTP/1.1](https://datatracker.ietf.org/doc/html/rfc2616) o
 [SPDY](https://tools.ietf.org/id/draft-ietf-httpbis-http2-00.html), 
 [QUIC](https://datatracker.ietf.org/doc/html/draft-ietf-quic-transport-34)) are not supported.
 * Support usage of either `http` (plaintext) or `https` (secure) requests. The current version of this provider is 
-built with [Go 1.18](https://go.dev/doc/go1.18) which [supports](https://go.dev/doc/go1.18#tls10) 
+built with [Go 1.19](https://go.dev/doc/go1.19) which [supports](https://go.dev/doc/go1.18#tls10) 
 [TLS/1.0](https://www.ietf.org/rfc/rfc2246.txt) ([deprecated](https://datatracker.ietf.org/doc/rfc8996/)), 
 [TLS/1.1](https://datatracker.ietf.org/doc/html/rfc4346) ([deprecated](https://datatracker.ietf.org/doc/rfc8996/)), 
 [TLS/1.2](https://datatracker.ietf.org/doc/html/rfc5246) and 

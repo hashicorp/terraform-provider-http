@@ -1,6 +1,6 @@
 module github.com/terraform-providers/terraform-provider-http
 
-go 1.18
+go 1.19
 
 require (
 	github.com/hashicorp/terraform-plugin-docs v0.14.1
