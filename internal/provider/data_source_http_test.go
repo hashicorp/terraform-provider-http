@@ -452,7 +452,7 @@ func TestDataSource_InsecureFalse(t *testing.T) {
 
   								insecure = false
 							}`, testHttpMock.server.URL),
-				ExpectError: regexp.MustCompile(fmt.Sprintf(`Error making request: Get "%s/200": x509: `, testHttpMock.server.URL)),
+				ExpectError: regexp.MustCompile(fmt.Sprintf(`Error making request: Get "%s/200": tls: `, testHttpMock.server.URL)),
 			},
 		},
 	})
@@ -470,7 +470,7 @@ func TestDataSource_InsecureUnconfigured(t *testing.T) {
 							data "http" "http_test" {
   								url = "%s/200"
 							}`, testHttpMock.server.URL),
-				ExpectError: regexp.MustCompile(fmt.Sprintf(`Error making request: Get "%s/200": x509: `, testHttpMock.server.URL)),
+				ExpectError: regexp.MustCompile(fmt.Sprintf(`Error making request: Get "%s/200": tls: `, testHttpMock.server.URL)),
 			},
 		},
 	})
