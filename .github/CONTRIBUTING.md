@@ -84,23 +84,30 @@ Where possible, dependency updates should occur through that system to ensure al
 updated and to prevent duplicated effort of concurrent update submissions.
 Once available, updates are expected to be verified and merged to prevent latent technical debt.
 
-### Changelog
+#### Changie Automation Tool
+This project uses the [Changie](https://changie.dev/) automation tool for changelog automation.
 
-HashiCorp’s open-source projects have always maintained user-friendly, readable `CHANGELOG`s that allow
-practitioners and developers to tell at a glance whether a release should have any effect on them,
-and to gauge the risk of an upgrade.
+To add a new entry to the `CHANGELOG`, install Changie using the following [instructions](https://changie.dev/guide/installation/)
 
-We follow Terraform Plugin
-[changelog specifications](https://www.terraform.io/plugin/sdkv2/best-practices/versioning#changelog-specification).
+After Changie is installed on your local machine, run:
+```bash
+changie new
+```
+and choose a `kind` of change corresponding to the Terraform Plugin [changelog categories](https://developer.hashicorp.com/terraform/plugin/sdkv2/best-practices/versioning#categorization)
+
+Fill out the body field following the entry format. Changie will then prompt for a Github issue or pull request number.
+
+Repeat this process for any additional changes. The `.yaml` files created in the `.changes/unreleased` folder
+should be pushed the repository along with any code changes.
 
 #### Entry format
 
 Entries that are specific to _resources_ or _data sources_, they should look like:
 
 ```markdown
-* resource/RESOURCE_NAME: ENTRY DESCRIPTION ([#PR_NUMBER](PR_URL)).
+* resource/RESOURCE_NAME: ENTRY DESCRIPTION.
 
-* data-source/DATA-SOURCE_NAME: ENTRY DESCRIPTION ([#PR_NUMBER](PR_URL)).
+* data-source/DATA-SOURCE_NAME: ENTRY DESCRIPTION.
 ```
 
 #### Which changes should appear in the `CHANGELOG`?
