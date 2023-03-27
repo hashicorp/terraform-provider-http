@@ -1,19 +1,20 @@
 package provider
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
-
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
 func TestDataSource_200(t *testing.T) {
@@ -374,6 +375,27 @@ EOF
 	})
 }
 
+func TestDataSource_WithClientCert(t *testing.T) {
+	s := setupMockMTLSHttpServer(t)
+	defer s.server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+data "http" "http_test" {
+  url = "%s"
+  ca_cert_pem = file("testdata/certs/ca.cert.pem")
+  client_cert_pem = file("testdata/certs/client.crt")
+  client_key_pem = file("testdata/certs/client.key")
+}
+`, s.server.URL),
+			},
+		},
+	})
+}
+
 func TestDataSource_WithCACertificateFalse(t *testing.T) {
 	testHttpMock := setUpMockHttpServer(true)
 	defer testHttpMock.server.Close()
@@ -430,7 +452,7 @@ func TestDataSource_InsecureFalse(t *testing.T) {
 
   								insecure = false
 							}`, testHttpMock.server.URL),
-				ExpectError: regexp.MustCompile(fmt.Sprintf(`Error making request: Get "%s/200": x509: `, testHttpMock.server.URL)),
+				ExpectError: regexp.MustCompile(fmt.Sprintf(`Error making request: Get "%s/200": (:?x509|tls): `, testHttpMock.server.URL)),
 			},
 		},
 	})
@@ -448,7 +470,7 @@ func TestDataSource_InsecureUnconfigured(t *testing.T) {
 							data "http" "http_test" {
   								url = "%s/200"
 							}`, testHttpMock.server.URL),
-				ExpectError: regexp.MustCompile(fmt.Sprintf(`Error making request: Get "%s/200": x509: `, testHttpMock.server.URL)),
+				ExpectError: regexp.MustCompile(fmt.Sprintf(`Error making request: Get "%s/200": (:?x509|tls): `, testHttpMock.server.URL)),
 			},
 		},
 	})
@@ -545,6 +567,33 @@ func CheckServerAndProxyRequestCount(proxyRequestCount, serverRequestCount *int)
 
 type TestHttpMock struct {
 	server *httptest.Server
+}
+
+func setupMockMTLSHttpServer(t *testing.T) *TestHttpMock {
+	server := httptest.NewUnstartedServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			httpReqHandler(w, r)
+		}),
+	)
+	CAs := x509.NewCertPool()
+	data, err := os.ReadFile("testdata/certs/ca.cert.pem")
+	if err != nil {
+		t.Fatalf("error reading testdata/certs/ca.cert.pem: %v", err)
+	}
+	if !CAs.AppendCertsFromPEM(data) {
+		t.Fatalf("error AppendCertsFromPEM from testdata/certs/ca.cert.pem: %v", err)
+	}
+	serverCert, err := tls.LoadX509KeyPair("testdata/certs/server.crt", "testdata/certs/server.key")
+	if err != nil {
+		t.Fatalf("error loading server key pair: %v", err)
+	}
+	server.TLS = &tls.Config{
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    CAs,
+		Certificates: []tls.Certificate{serverCert},
+	}
+	server.StartTLS()
+	return &TestHttpMock{server: server}
 }
 
 func setUpMockHttpServer(tls bool) *TestHttpMock {
