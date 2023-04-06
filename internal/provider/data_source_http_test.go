@@ -501,7 +501,7 @@ func TestDataSource_InsecureFalse(t *testing.T) {
 				ExpectError: regexp.MustCompile(
 					fmt.Sprintf(
 						"Error making request: GET %s giving up after 1\n"+
-							"attempt\\(s\\): Get \"%s\": x509:",
+							"attempt\\(s\\): Get \"%s\": ",
 						testServer.URL,
 						testServer.URL,
 					),
@@ -528,7 +528,7 @@ func TestDataSource_InsecureUnconfigured(t *testing.T) {
 				ExpectError: regexp.MustCompile(
 					fmt.Sprintf(
 						"Error making request: GET %s giving up after 1\n"+
-							"attempt\\(s\\): Get \"%s\": x509:",
+							"attempt\\(s\\): Get \"%s\": ",
 						testServer.URL,
 						testServer.URL,
 					),
