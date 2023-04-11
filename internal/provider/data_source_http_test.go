@@ -51,6 +51,39 @@ func TestDataSource_200(t *testing.T) {
 	})
 }
 
+func TestDataSource_200_SlashInPath(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("X-Single", "foobar")
+		w.Header().Add("X-Double", "1")
+		w.Header().Add("X-Double", "2")
+		_, err := w.Write([]byte("1.0.0"))
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s/200"
+							}`, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
 func TestDataSource_404(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
@@ -631,7 +664,7 @@ func TestDataSource_Timeout(t *testing.T) {
 				Config: fmt.Sprintf(`
 							data "http" "http_test" {
   								url = "%s"
-								request_timeout = 5
+								request_timeout_ms = 5
 							}`, svr.URL),
 				ExpectError: regexp.MustCompile(`request exceeded the specified timeout: 5ms`),
 			},
@@ -692,7 +725,7 @@ func TestDataSource_MinDelay(t *testing.T) {
   								url = "%s"
 								retry {
 									attempts = 1
-									min_delay = %d
+									min_delay_ms = %d
 								}
 							}`, svr.URL, minDelay),
 				Check: resource.ComposeAggregateTestCheckFunc(
@@ -721,12 +754,12 @@ func TestDataSource_MaxDelay(t *testing.T) {
   								url = "%s"
 								retry {
 									attempts = 1
-									max_delay = 300
+									max_delay_ms = 300
 								}
 							}`, svr.URL),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
-					resource.TestCheckResourceAttr("data.http.http_test", "retry.max_delay", "300"),
+					resource.TestCheckResourceAttr("data.http.http_test", "retry.max_delay_ms", "300"),
 				),
 			},
 		},
@@ -747,11 +780,11 @@ func TestDataSource_MaxDelayAtLeastEqualToMinDelay(t *testing.T) {
   								url = "%s"
 								retry {
 									attempts = 1
-									min_delay = 300
-									max_delay = 200
+									min_delay_ms = 300
+									max_delay_ms = 200
 								}
 							}`, svr.URL),
-				ExpectError: regexp.MustCompile("Attribute retry.max_delay value must be at least sum of <.min_delay, got: 200"),
+				ExpectError: regexp.MustCompile("Attribute retry.max_delay_ms value must be at least sum of <.min_delay_ms,\ngot: 200"),
 			},
 		},
 	})

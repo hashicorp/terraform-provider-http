@@ -58,7 +58,13 @@ regardless of the returned content type header.
 ~> **Important** Although ` + "`https`" + ` URLs can be used, there is currently no
 mechanism to authenticate the remote server except for general verification of
 the server certificate's chain of trust. Data retrieved from servers not under
-your control should be treated as untrustworthy.`,
+your control should be treated as untrustworthy.
+
+By default, there are no retries. Configuring the retry block will result in
+retries if an error is returned by the client (e.g., connection errors) or if 
+a 5xx-range (except 501) status code is received. For further details see 
+[go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp).
+`,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -96,7 +102,7 @@ your control should be treated as untrustworthy.`,
 				Optional:    true,
 			},
 
-			"request_timeout": schema.Int64Attribute{
+			"request_timeout_ms": schema.Int64Attribute{
 				Description: "The request timeout in milliseconds.",
 				Optional:    true,
 				Validators: []validator.Int64{
@@ -145,28 +151,30 @@ your control should be treated as untrustworthy.`,
 
 		Blocks: map[string]schema.Block{
 			"retry": schema.SingleNestedBlock{
-				Description: "Retry request configuration.",
+				Description: "Retry request configuration. By default there are no retries. Configuring this block will result in " +
+					"retries if an error is returned by the client (e.g., connection errors) or if a 5xx-range (except 501) status code is received. " +
+					"For further details see [go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp).",
 				Attributes: map[string]schema.Attribute{
 					"attempts": schema.Int64Attribute{
-						Description: "The number of retry attempts.",
+						Description: "The number of times the request is to be retried. For example, if 2 is specified, the request will be tried a maximum of 3 times.",
 						Optional:    true,
 						Validators: []validator.Int64{
 							int64validator.AtLeast(0),
 						},
 					},
-					"min_delay": schema.Int64Attribute{
+					"min_delay_ms": schema.Int64Attribute{
 						Description: "The minimum delay between retry requests in milliseconds.",
 						Optional:    true,
 						Validators: []validator.Int64{
 							int64validator.AtLeast(0),
 						},
 					},
-					"max_delay": schema.Int64Attribute{
+					"max_delay_ms": schema.Int64Attribute{
 						Description: "The maximum delay between retry requests in milliseconds.",
 						Optional:    true,
 						Validators: []validator.Int64{
 							int64validator.AtLeast(0),
-							int64validator.AtLeastSumOf(path.MatchRelative().AtParent().AtName("min_delay")),
+							int64validator.AtLeastSumOf(path.MatchRelative().AtParent().AtName("min_delay_ms")),
 						},
 					},
 				},
@@ -391,7 +399,7 @@ type modelV0 struct {
 	Method          types.String `tfsdk:"method"`
 	RequestHeaders  types.Map    `tfsdk:"request_headers"`
 	RequestBody     types.String `tfsdk:"request_body"`
-	RequestTimeout  types.Int64  `tfsdk:"request_timeout"`
+	RequestTimeout  types.Int64  `tfsdk:"request_timeout_ms"`
 	Retry           types.Object `tfsdk:"retry"`
 	ResponseHeaders types.Map    `tfsdk:"response_headers"`
 	CaCertificate   types.String `tfsdk:"ca_cert_pem"`
@@ -403,8 +411,8 @@ type modelV0 struct {
 
 type retryModel struct {
 	Attempts types.Int64 `tfsdk:"attempts"`
-	MinDelay types.Int64 `tfsdk:"min_delay"`
-	MaxDelay types.Int64 `tfsdk:"max_delay"`
+	MinDelay types.Int64 `tfsdk:"min_delay_ms"`
+	MaxDelay types.Int64 `tfsdk:"max_delay_ms"`
 }
 
 var _ retryablehttp.LeveledLogger = levelledLogger{}

@@ -1,6 +1,5 @@
 kind: ENHANCEMENTS
-body: 'data-source/http: Added `retry` with nested `attempts`, `max_delay` and `min_delay`
-  ([#151](https://github.com/hashicorp/terraform-provider-http/pull/151)).'
+body: 'data-source/http: Added `retry` with nested `attempts`, `max_delay_ms` and `min_delay_ms`'
 time: 2023-02-09T16:57:28.046924Z
 custom:
   Issue: "151"
