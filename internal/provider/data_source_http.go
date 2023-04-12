@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -11,7 +12,10 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -19,6 +23,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"golang.org/x/net/http/httpproxy"
 )
 
@@ -52,7 +58,13 @@ regardless of the returned content type header.
 ~> **Important** Although ` + "`https`" + ` URLs can be used, there is currently no
 mechanism to authenticate the remote server except for general verification of
 the server certificate's chain of trust. Data retrieved from servers not under
-your control should be treated as untrustworthy.`,
+your control should be treated as untrustworthy.
+
+By default, there are no retries. Configuring the retry block will result in
+retries if an error is returned by the client (e.g., connection errors) or if 
+a 5xx-range (except 501) status code is received. For further details see 
+[go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp).
+`,
 
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
@@ -88,6 +100,14 @@ your control should be treated as untrustworthy.`,
 			"request_body": schema.StringAttribute{
 				Description: "The request body as a string.",
 				Optional:    true,
+			},
+
+			"request_timeout_ms": schema.Int64Attribute{
+				Description: "The request timeout in milliseconds.",
+				Optional:    true,
+				Validators: []validator.Int64{
+					int64validator.AtLeast(1),
+				},
 			},
 
 			"response_body": schema.StringAttribute{
@@ -126,6 +146,38 @@ your control should be treated as untrustworthy.`,
 			"status_code": schema.Int64Attribute{
 				Description: `The HTTP response status code.`,
 				Computed:    true,
+			},
+		},
+
+		Blocks: map[string]schema.Block{
+			"retry": schema.SingleNestedBlock{
+				Description: "Retry request configuration. By default there are no retries. Configuring this block will result in " +
+					"retries if an error is returned by the client (e.g., connection errors) or if a 5xx-range (except 501) status code is received. " +
+					"For further details see [go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp).",
+				Attributes: map[string]schema.Attribute{
+					"attempts": schema.Int64Attribute{
+						Description: "The number of times the request is to be retried. For example, if 2 is specified, the request will be tried a maximum of 3 times.",
+						Optional:    true,
+						Validators: []validator.Int64{
+							int64validator.AtLeast(0),
+						},
+					},
+					"min_delay_ms": schema.Int64Attribute{
+						Description: "The minimum delay between retry requests in milliseconds.",
+						Optional:    true,
+						Validators: []validator.Int64{
+							int64validator.AtLeast(0),
+						},
+					},
+					"max_delay_ms": schema.Int64Attribute{
+						Description: "The maximum delay between retry requests in milliseconds.",
+						Optional:    true,
+						Validators: []validator.Int64{
+							int64validator.AtLeast(0),
+							int64validator.AtLeastSumOf(path.MatchRelative().AtParent().AtName("min_delay_ms")),
+						},
+					},
+				},
 			},
 		},
 	}
@@ -195,11 +247,38 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		clonedTr.TLSClientConfig.RootCAs = caCertPool
 	}
 
-	client := &http.Client{
-		Transport: clonedTr,
+	var retry retryModel
+
+	if !model.Retry.IsNull() && !model.Retry.IsUnknown() {
+		diags = model.Retry.As(ctx, &retry, basetypes.ObjectAsOptions{})
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
 	}
 
-	request, err := http.NewRequestWithContext(ctx, method, requestURL, requestBody)
+	retryClient := retryablehttp.NewClient()
+	retryClient.HTTPClient.Transport = clonedTr
+
+	var timeout time.Duration
+
+	if model.RequestTimeout.ValueInt64() > 0 {
+		timeout = time.Duration(model.RequestTimeout.ValueInt64()) * time.Millisecond
+		retryClient.HTTPClient.Timeout = timeout
+	}
+
+	retryClient.Logger = levelledLogger{ctx}
+	retryClient.RetryMax = int(retry.Attempts.ValueInt64())
+
+	if !retry.MinDelay.IsNull() && !retry.MinDelay.IsUnknown() && retry.MinDelay.ValueInt64() >= 0 {
+		retryClient.RetryWaitMin = time.Duration(retry.MinDelay.ValueInt64()) * time.Millisecond
+	}
+
+	if !retry.MaxDelay.IsNull() && !retry.MaxDelay.IsUnknown() && retry.MaxDelay.ValueInt64() >= 0 {
+		retryClient.RetryWaitMax = time.Duration(retry.MaxDelay.ValueInt64()) * time.Millisecond
+	}
+
+	request, err := retryablehttp.NewRequestWithContext(ctx, method, requestURL, requestBody)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating request",
@@ -219,8 +298,25 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		request.Header.Set(name, header)
 	}
 
-	response, err := client.Do(request)
+	response, err := retryClient.Do(request)
 	if err != nil {
+		target := &url.Error{}
+		if errors.As(err, &target) {
+			if target.Timeout() {
+				detail := fmt.Sprintf("timeout error: %s", err)
+
+				if timeout > 0 {
+					detail = fmt.Sprintf("request exceeded the specified timeout: %s, err: %s", timeout.String(), err)
+				}
+
+				resp.Diagnostics.AddError(
+					"Error making request",
+					detail,
+				)
+				return
+			}
+		}
+
 		resp.Diagnostics.AddError(
 			"Error making request",
 			fmt.Sprintf("Error making request: %s", err),
@@ -251,8 +347,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	responseHeaders := make(map[string]string)
 	for k, v := range response.Header {
-		// Concatenate according to RFC2616
-		// cf. https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2
+		// Concatenate according to RFC9110 https://www.rfc-editor.org/rfc/rfc9110.html#section-5.2
 		responseHeaders[k] = strings.Join(v, ", ")
 	}
 
@@ -304,10 +399,51 @@ type modelV0 struct {
 	Method          types.String `tfsdk:"method"`
 	RequestHeaders  types.Map    `tfsdk:"request_headers"`
 	RequestBody     types.String `tfsdk:"request_body"`
+	RequestTimeout  types.Int64  `tfsdk:"request_timeout_ms"`
+	Retry           types.Object `tfsdk:"retry"`
 	ResponseHeaders types.Map    `tfsdk:"response_headers"`
 	CaCertificate   types.String `tfsdk:"ca_cert_pem"`
 	Insecure        types.Bool   `tfsdk:"insecure"`
 	ResponseBody    types.String `tfsdk:"response_body"`
 	Body            types.String `tfsdk:"body"`
 	StatusCode      types.Int64  `tfsdk:"status_code"`
+}
+
+type retryModel struct {
+	Attempts types.Int64 `tfsdk:"attempts"`
+	MinDelay types.Int64 `tfsdk:"min_delay_ms"`
+	MaxDelay types.Int64 `tfsdk:"max_delay_ms"`
+}
+
+var _ retryablehttp.LeveledLogger = levelledLogger{}
+
+// levelledLogger is used to log messages from retryablehttp.Client to tflog.
+type levelledLogger struct {
+	ctx context.Context
+}
+
+func (l levelledLogger) Error(msg string, keysAndValues ...interface{}) {
+	tflog.Error(l.ctx, msg, l.additionalFields(keysAndValues))
+}
+
+func (l levelledLogger) Info(msg string, keysAndValues ...interface{}) {
+	tflog.Info(l.ctx, msg, l.additionalFields(keysAndValues))
+}
+
+func (l levelledLogger) Debug(msg string, keysAndValues ...interface{}) {
+	tflog.Debug(l.ctx, msg, l.additionalFields(keysAndValues))
+}
+
+func (l levelledLogger) Warn(msg string, keysAndValues ...interface{}) {
+	tflog.Warn(l.ctx, msg, l.additionalFields(keysAndValues))
+}
+
+func (l levelledLogger) additionalFields(keysAndValues []interface{}) map[string]interface{} {
+	additionalFields := make(map[string]interface{}, len(keysAndValues))
+
+	for i := 0; i+1 < len(keysAndValues); i += 2 {
+		additionalFields[fmt.Sprint(keysAndValues[i])] = keysAndValues[i+1]
+	}
+
+	return additionalFields
 }
