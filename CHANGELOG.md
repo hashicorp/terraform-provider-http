@@ -1,3 +1,14 @@
+## 3.3.0 (April 25, 2023)
+
+NOTES:
+
+* This Go module has been updated to Go 1.19 per the [Go support policy](https://golang.org/doc/devel/release.html#policy). Any consumers building on earlier Go versions may experience errors. ([#245](https://github.com/hashicorp/terraform-provider-http/issues/245))
+
+ENHANCEMENTS:
+
+* data-source/http: Added `retry` with nested `attempts`, `max_delay_ms` and `min_delay_ms` ([#151](https://github.com/hashicorp/terraform-provider-http/issues/151))
+* data-source/http: Added `request_timeout_ms` ([#151](https://github.com/hashicorp/terraform-provider-http/issues/151))
+
 ## 3.2.1 (November 7, 2022)
 
 BUG FIXES
