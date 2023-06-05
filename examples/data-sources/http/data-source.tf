@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
 # The following example shows how to issue an HTTP GET request supplying
 # an optional request header.
 data "http" "example" {
