@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
@@ -245,8 +246,8 @@ func TestDataSource_x509cert(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
-			//test fails in TF 0.14.0 due to https://github.com/hashicorp/terraform-provider-http/issues/58
-			tfversion.SkipIf(tfversion.Version0_14_0),
+			//test fails in TF 0.14.x due to https://github.com/hashicorp/terraform-provider-http/issues/58
+			tfversion.SkipBetween(version.Must(version.NewVersion("0.14.0")), version.Must(version.NewVersion("0.15.0"))),
 		},
 		Steps: []resource.TestStep{
 			{
@@ -837,9 +838,9 @@ func TestDataSource_ResponseBodyBinary(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
-			//test fails in TF 0.14.0 due to quirk in behavior
+			//test fails in TF 0.14.x due to quirk in behavior
 			//where a warning results in nothing being written to output.
-			tfversion.SkipIf(tfversion.Version0_14_0),
+			tfversion.SkipBetween(version.Must(version.NewVersion("0.14.0")), version.Must(version.NewVersion("0.15.0"))),
 		},
 		Steps: []resource.TestStep{
 			{
