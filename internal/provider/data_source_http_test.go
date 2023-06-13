@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
 func TestDataSource_200(t *testing.T) {
@@ -230,32 +231,37 @@ func TestDataSource_utf16_200(t *testing.T) {
 	})
 }
 
-// TODO: This test fails under Terraform 0.14. It should be uncommented when we
-// are able to include Terraform version logic within acceptance tests
-// (see https://github.com/hashicorp/terraform-plugin-sdk/issues/776), or when
-// 0.14 is removed from the test matrix (see
-// https://github.com/hashicorp/terraform-provider-http/pull/74).
-//
-//func TestDataSource_x509cert(t *testing.T) {
-//	testHttpMock := setUpMockHttpServer()
-//	defer testHttpMock.server.Close()
-//
-//	resource.UnitTest(t, resource.TestCase{
-//		ProtoV5ProviderFactories: protoV5ProviderFactories(),
-//		Steps: []resource.TestStep{
-//			{
-//				Config: fmt.Sprintf(`
-//							data "http" "http_test" {
-//  								url = "%s/x509-ca-cert/200"
-//							}`, testHttpMock.server.URL),
-//				Check: resource.ComposeTestCheckFunc(
-//					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "pem"),
-//					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
-//				),
-//			},
-//		},
-//	})
-//}
+func TestDataSource_x509cert(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/x-x509-ca-cert")
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte("pem"))
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			//test fails in TF 0.14.0 due to https://github.com/hashicorp/terraform-provider-http/issues/58
+			tfversion.SkipIf(tfversion.Version0_14_0),
+		},
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+ 								url = "%s/x509-ca-cert/200"
+							}`, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "pem"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
 
 func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
