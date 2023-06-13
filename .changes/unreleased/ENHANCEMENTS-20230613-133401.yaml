@@ -1,0 +1,6 @@
+kind: ENHANCEMENTS
+body: 'data-source/http: Replaced issuing warning on the basis of possible non-text
+  `Content-Type` with issuing warning if response body does not contain valid UTF-8.'
+time: 2023-06-13T13:34:01.499384-04:00
+custom:
+  Issue: "158"
