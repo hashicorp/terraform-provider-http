@@ -7,15 +7,12 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
-	"mime"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -337,7 +334,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	defer response.Body.Close()
 
-	bytes, err := ioutil.ReadAll(response.Body)
+	bytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error reading response body",
@@ -380,20 +377,20 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 }
 
 type modelV0 struct {
-	ID              types.String `tfsdk:"id"`
-	URL             types.String `tfsdk:"url"`
-	Method          types.String `tfsdk:"method"`
-	RequestHeaders  types.Map    `tfsdk:"request_headers"`
-	RequestBody     types.String `tfsdk:"request_body"`
-	RequestTimeout  types.Int64  `tfsdk:"request_timeout_ms"`
-	Retry           types.Object `tfsdk:"retry"`
-	ResponseHeaders types.Map    `tfsdk:"response_headers"`
-	CaCertificate   types.String `tfsdk:"ca_cert_pem"`
-	Insecure        types.Bool   `tfsdk:"insecure"`
-	ResponseBody    types.String `tfsdk:"response_body"`
-	Body            types.String `tfsdk:"body"`
+	ID                    types.String `tfsdk:"id"`
+	URL                   types.String `tfsdk:"url"`
+	Method                types.String `tfsdk:"method"`
+	RequestHeaders        types.Map    `tfsdk:"request_headers"`
+	RequestBody           types.String `tfsdk:"request_body"`
+	RequestTimeout        types.Int64  `tfsdk:"request_timeout_ms"`
+	Retry                 types.Object `tfsdk:"retry"`
+	ResponseHeaders       types.Map    `tfsdk:"response_headers"`
+	CaCertificate         types.String `tfsdk:"ca_cert_pem"`
+	Insecure              types.Bool   `tfsdk:"insecure"`
+	ResponseBody          types.String `tfsdk:"response_body"`
+	Body                  types.String `tfsdk:"body"`
 	ResponseBodyBase64Std types.String `tfsdk:"response_body_base64"`
-	StatusCode      types.Int64  `tfsdk:"status_code"`
+	StatusCode            types.Int64  `tfsdk:"status_code"`
 }
 
 type retryModel struct {
