@@ -1,3 +1,10 @@
+## 3.4.0 (June 21, 2023)
+
+ENHANCEMENTS:
+
+* data-source/http: `response_body_base64` has been added and contains a standard base64 encoding of the response body ([#158](https://github.com/hashicorp/terraform-provider-http/issues/158))
+* data-source/http: Replaced issuing warning on the basis of possible non-text `Content-Type` with issuing warning if response body does not contain valid UTF-8. ([#158](https://github.com/hashicorp/terraform-provider-http/issues/158))
+
 ## 3.3.0 (April 25, 2023)
 
 NOTES:
