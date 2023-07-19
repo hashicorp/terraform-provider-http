@@ -24,3 +24,13 @@ data "http" "example_post" {
   # Optional request body
   request_body = "request body"
 }
+
+# The following example shows how to issue an HTTP PUT request
+# supplying an optional request body.
+data "http" "example_put" {
+  url    = "https://checkpoint-api.hashicorp.com/v1/check/terraform"
+  method = "PUT"
+
+  # Optional request body
+  request_body = "request body"
+}
