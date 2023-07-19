@@ -887,3 +887,38 @@ func checkMinDelay(timeOfFirstRequest, timeOfSecondRequest *int64, minDelay int)
 		return nil
 	}
 }
+func TestDataSource_PUT(t *testing.T) {
+
+	methodToTest := http.MethodPut
+	statusToExpect := http.StatusOK
+
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == methodToTest {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(statusToExpect)
+			_, err := w.Write([]byte("testing 1 2 3"))
+			if err != nil {
+				t.Errorf("error writing body: %s", err)
+			}
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+								method = "%s"
+							}`, testServer.URL, methodToTest),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "testing 1 2 3"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", fmt.Sprintf("%v", statusToExpect)),
+				),
+			},
+		},
+	})
+}

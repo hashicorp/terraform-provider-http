@@ -90,6 +90,7 @@ a 5xx-range (except 501) status code is received. For further details see
 						http.MethodGet,
 						http.MethodPost,
 						http.MethodHead,
+						http.MethodPut,
 					}...),
 				},
 			},
