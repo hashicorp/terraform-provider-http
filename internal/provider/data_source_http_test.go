@@ -447,7 +447,7 @@ func TestDataSource_UnsupportedMethod(t *testing.T) {
  								url = "%s"
 								method = "OPTIONS" 
 							}`, testServer.URL),
-				ExpectError: regexp.MustCompile(`.*value must be one of: \["\\"GET\\"" "\\"POST\\"" "\\"HEAD\\""`),
+				ExpectError: regexp.MustCompile(`.*value must be one of: \["GET" "POST" "HEAD"`),
 			},
 		},
 	})
