@@ -135,8 +135,6 @@ import { Uuid } from "./.gen/providers/random/uuid";
 class MyConvertedCode extends TerraformStack {
   constructor(scope: Construct, name: string) {
     super(scope, name);
-    /*The following providers are missing schema information and might need manual adjustments to synthesize correctly: random.
-    For a more precise conversion please use the --provider flag in convert.*/
     const dataHttpExample = new DataHttp(this, "example", {
       request_headers: [
         {
@@ -239,4 +237,4 @@ Optional:
 - `attempts` (Number) The number of times the request is to be retried. For example, if 2 is specified, the request will be tried a maximum of 3 times.
 - `maxDelayMs` (Number) The maximum delay between retry requests in milliseconds.
 - `minDelayMs` (Number) The minimum delay between retry requests in milliseconds.
-<!-- cache-key: cdktf-0.18.0 input-363029f7f41c674878915312a3571ec089f1c4a4edfcb29f6544255fd0955a9a -->
+<!-- cache-key: cdktf-0.18.0 input-363029f7f41c674878915312a3571ec089f1c4a4edfcb29f6544255fd0955a9a f2b242f7a7b122d20d53e73a095623b309da8785eb51cc7abb0f8c4ff005599d-->
