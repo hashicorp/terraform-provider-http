@@ -699,9 +699,8 @@ func TestDataSource_Retry(t *testing.T) {
 					fmt.Sprintf(
 						"Error making request: GET https://%s.com\n"+
 							"giving up after 2 attempt\\(s\\): Get\n"+
-							"\"https://%s.com\": dial tcp: lookup\n"+
-							"%s.com: no such host",
-						uid.String(), uid.String(), uid.String(),
+							"\"https://%s.com\": dial tcp: lookup",
+						uid.String(), uid.String(),
 					),
 				),
 			},
