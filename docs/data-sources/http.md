@@ -4,10 +4,8 @@ subcategory: ""
 description: |-
   The http data source makes an HTTP GET request to the given URL and exports
   information about the response.
-  The given URL may be either an http or https URL. At present this resource
-  can only retrieve data from URLs that respond with text/* or
-  application/json content types, and expects the result to be UTF-8 encoded
-  regardless of the returned content type header.
+  The given URL may be either an http or https URL. This resource
+  will issue a warning if the result is not UTF-8 encoded.
   ~> Important Although https URLs can be used, there is currently no
   mechanism to authenticate the remote server except for general verification of
   the server certificate's chain of trust. Data retrieved from servers not under
@@ -23,10 +21,8 @@ description: |-
 The `http` data source makes an HTTP GET request to the given URL and exports
 information about the response.
 
-The given URL may be either an `http` or `https` URL. At present this resource
-can only retrieve data from URLs that respond with `text/*` or
-`application/json` content types, and expects the result to be UTF-8 encoded
-regardless of the returned content type header.
+The given URL may be either an `http` or `https` URL. This resource
+will issue a warning if the result is not UTF-8 encoded.
 
 ~> **Important** Although `https` URLs can be used, there is currently no
 mechanism to authenticate the remote server except for general verification of
