@@ -4,10 +4,8 @@ subcategory: ""
 description: |-
   The http data source makes an HTTP GET request to the given URL and exports
   information about the response.
-  The given URL may be either an http or https URL. At present this resource
-  can only retrieve data from URLs that respond with text/* or
-  application/json content types, and expects the result to be UTF-8 encoded
-  regardless of the returned content type header.
+  The given URL may be either an http or https URL. This resource
+  will issue a warning if the result is not UTF-8 encoded.
   ~> Important Although https URLs can be used, there is currently no
   mechanism to authenticate the remote server except for general verification of
   the server certificate's chain of trust. Data retrieved from servers not under
@@ -25,10 +23,8 @@ description: |-
 The `http` data source makes an HTTP GET request to the given URL and exports
 information about the response.
 
-The given URL may be either an `http` or `https` URL. At present this resource
-can only retrieve data from URLs that respond with `text/*` or
-`application/json` content types, and expects the result to be UTF-8 encoded
-regardless of the returned content type header.
+The given URL may be either an `http` or `https` URL. This resource
+will issue a warning if the result is not UTF-8 encoded.
 
 ~> **Important** Although `https` URLs can be used, there is currently no
 mechanism to authenticate the remote server except for general verification of
@@ -237,4 +233,4 @@ Optional:
 - `attempts` (Number) The number of times the request is to be retried. For example, if 2 is specified, the request will be tried a maximum of 3 times.
 - `maxDelayMs` (Number) The maximum delay between retry requests in milliseconds.
 - `minDelayMs` (Number) The minimum delay between retry requests in milliseconds.
-<!-- cache-key: cdktf-0.18.0 input-363029f7f41c674878915312a3571ec089f1c4a4edfcb29f6544255fd0955a9a f2b242f7a7b122d20d53e73a095623b309da8785eb51cc7abb0f8c4ff005599d-->
+<!-- cache-key: cdktf-0.18.0 input-3f3d9826beac1ee235306177655bd6aa2e038f33a07d244843f3a9d3c82a31de f2b242f7a7b122d20d53e73a095623b309da8785eb51cc7abb0f8c4ff005599d-->
