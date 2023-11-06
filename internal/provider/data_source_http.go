@@ -34,10 +34,19 @@ import (
 var _ datasource.DataSource = (*httpDataSource)(nil)
 
 func NewHttpDataSource() datasource.DataSource {
-	return &httpDataSource{}
+	tr := http.DefaultTransport.(*http.Transport)
+
+	// Prevent issues with multiple data source configurations modifying the shared transport.
+	clonedTr := tr.Clone()
+
+	return &httpDataSource{
+		transport: clonedTr,
+	}
 }
 
-type httpDataSource struct{}
+type httpDataSource struct {
+	transport *http.Transport
+}
 
 func (d *httpDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	// This data source name unconventionally is equal to the provider name,
@@ -210,32 +219,20 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	caCertificate := model.CaCertificate
 
-	tr, ok := http.DefaultTransport.(*http.Transport)
-	if !ok {
-		resp.Diagnostics.AddError(
-			"Error configuring http transport",
-			"Error http: Can't configure http transport.",
-		)
-		return
-	}
-
-	// Prevent issues with multiple data source configurations modifying the shared transport.
-	clonedTr := tr.Clone()
-
 	// Prevent issues with tests caching the proxy configuration.
-	clonedTr.Proxy = func(req *http.Request) (*url.URL, error) {
+	d.transport.Proxy = func(req *http.Request) (*url.URL, error) {
 		return httpproxy.FromEnvironment().ProxyFunc()(req.URL)
 	}
 
-	if clonedTr.TLSClientConfig == nil {
-		clonedTr.TLSClientConfig = &tls.Config{}
+	if d.transport.TLSClientConfig == nil {
+		d.transport.TLSClientConfig = &tls.Config{}
 	}
 
 	if !model.Insecure.IsNull() {
-		if clonedTr.TLSClientConfig == nil {
-			clonedTr.TLSClientConfig = &tls.Config{}
+		if d.transport.TLSClientConfig == nil {
+			d.transport.TLSClientConfig = &tls.Config{}
 		}
-		clonedTr.TLSClientConfig.InsecureSkipVerify = model.Insecure.ValueBool()
+		d.transport.TLSClientConfig.InsecureSkipVerify = model.Insecure.ValueBool()
 	}
 
 	// Use `ca_cert_pem` cert pool
@@ -249,10 +246,10 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 			return
 		}
 
-		if clonedTr.TLSClientConfig == nil {
-			clonedTr.TLSClientConfig = &tls.Config{}
+		if d.transport.TLSClientConfig == nil {
+			d.transport.TLSClientConfig = &tls.Config{}
 		}
-		clonedTr.TLSClientConfig.RootCAs = caCertPool
+		d.transport.TLSClientConfig.RootCAs = caCertPool
 	}
 
 	var retry retryModel
@@ -266,7 +263,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	retryClient := retryablehttp.NewClient()
-	retryClient.HTTPClient.Transport = clonedTr
+	retryClient.HTTPClient.Transport = d.transport
 
 	var timeout time.Duration
 
