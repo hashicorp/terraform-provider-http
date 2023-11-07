@@ -210,7 +210,7 @@ class MyConvertedCode extends TerraformStack {
 
 - `caCertPem` (String) Certificate data of the Certificate Authority (CA) in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.
 - `insecure` (Boolean) Disables verification of the server's certificate chain and hostname. Defaults to `false`
-- `method` (String) The HTTP Method for the request. Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, `get`, `head`, and `post`. `post` support is only intended for read-only URLs, such as submitting a search.
+- `method` (String) The HTTP Method for the request. Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, `GET`, `HEAD`, and `POST`. `POST` support is only intended for read-only URLs, such as submitting a search.
 - `requestBody` (String) The request body as a string.
 - `requestHeaders` (Map of String) A map of request header field names and values.
 - `requestTimeoutMs` (Number) The request timeout in milliseconds.
@@ -218,7 +218,7 @@ class MyConvertedCode extends TerraformStack {
 
 ### Read-Only
 
-- `body` (String, Deprecated) The response body returned as a string. **NOTE**: This is deprecated, use `responseBody` instead.
+- `body` (String, Deprecated) The response body returned as a string. **NOTE**: This is deprecated, use `response_body` instead.
 - `id` (String) The URL used for the request.
 - `responseBody` (String) The response body returned as a string.
 - `responseBodyBase64` (String) The response body encoded as base64 (standard) as defined in [RFC 4648](https://datatracker.ietf.org/doc/html/rfc4648#section-4).
@@ -233,4 +233,4 @@ Optional:
 - `attempts` (Number) The number of times the request is to be retried. For example, if 2 is specified, the request will be tried a maximum of 3 times.
 - `maxDelayMs` (Number) The maximum delay between retry requests in milliseconds.
 - `minDelayMs` (Number) The minimum delay between retry requests in milliseconds.
-<!-- cache-key: cdktf-0.18.0 input-3f3d9826beac1ee235306177655bd6aa2e038f33a07d244843f3a9d3c82a31de f2b242f7a7b122d20d53e73a095623b309da8785eb51cc7abb0f8c4ff005599d-->
+<!-- cache-key: cdktf-0.19.0 input-3f3d9826beac1ee235306177655bd6aa2e038f33a07d244843f3a9d3c82a31de f2b242f7a7b122d20d53e73a095623b309da8785eb51cc7abb0f8c4ff005599d-->
