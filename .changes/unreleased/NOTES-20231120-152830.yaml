@@ -1,0 +1,6 @@
+kind: NOTES
+body: 'data-source/http: Includes update to go-retryablehttp fixing preservation of
+  request body on temporary redirects or re-established HTTP/2 connections'
+time: 2023-11-20T15:28:30.761448Z
+custom:
+  Issue: "346"
