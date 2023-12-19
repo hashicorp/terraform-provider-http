@@ -1,3 +1,9 @@
+## 3.4.1 (December 19, 2023)
+
+BUG FIXES:
+
+* data-source/http: Includes update to go-retryablehttp fixing preservation of request body on temporary redirects or re-established HTTP/2 connections ([#346](https://github.com/hashicorp/terraform-provider-http/issues/346))
+
 ## 3.4.0 (June 21, 2023)
 
 ENHANCEMENTS:
