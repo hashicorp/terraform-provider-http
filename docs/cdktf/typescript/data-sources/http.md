@@ -174,8 +174,6 @@ import { DataHttp } from "./.gen/providers/http/";
 class MyConvertedCode extends TerraformStack {
   constructor(scope: Construct, name: string) {
     super(scope, name);
-    /*The following providers are missing schema information and might need manual adjustments to synthesize correctly: null.
-    For a more precise conversion please use the --provider flag in convert.*/
     const dataHttpExample = new DataHttp(this, "example", {
       request_headers: [
         {
@@ -218,7 +216,7 @@ class MyConvertedCode extends TerraformStack {
 
 ### Read-Only
 
-- `body` (String, Deprecated) The response body returned as a string. **NOTE**: This is deprecated, use `response_body` instead.
+- `body` (String, Deprecated) The response body returned as a string. **NOTE**: This is deprecated, use `responseBody` instead.
 - `id` (String) The URL used for the request.
 - `responseBody` (String) The response body returned as a string.
 - `responseBodyBase64` (String) The response body encoded as base64 (standard) as defined in [RFC 4648](https://datatracker.ietf.org/doc/html/rfc4648#section-4).
@@ -233,4 +231,4 @@ Optional:
 - `attempts` (Number) The number of times the request is to be retried. For example, if 2 is specified, the request will be tried a maximum of 3 times.
 - `maxDelayMs` (Number) The maximum delay between retry requests in milliseconds.
 - `minDelayMs` (Number) The minimum delay between retry requests in milliseconds.
-<!-- cache-key: cdktf-0.19.0 input-3f3d9826beac1ee235306177655bd6aa2e038f33a07d244843f3a9d3c82a31de f2b242f7a7b122d20d53e73a095623b309da8785eb51cc7abb0f8c4ff005599d-->
+<!-- cache-key: cdktf-0.20.0 input-3f3d9826beac1ee235306177655bd6aa2e038f33a07d244843f3a9d3c82a31de -->
