@@ -1,9 +1,0 @@
-kind: NOTES
-body: 'data-source/http: Previously the HTTP request would unexpectedly always contain
-  a body for all requests. Certain HTTP server implementations are sensitive to this
-  data existing if it is not expected. Requests now only contain a request body if
-  the `request_body` attribute is explicitly set. To exactly preserve the previous
-  behavior, set `request_body = ""`.'
-time: 2024-02-29T15:14:26.883908-05:00
-custom:
-  Issue: "388"
