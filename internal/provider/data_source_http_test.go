@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
@@ -793,6 +794,71 @@ func TestDataSource_MaxDelayAtLeastEqualToMinDelay(t *testing.T) {
 								}
 							}`, svr.URL),
 				ExpectError: regexp.MustCompile("Attribute retry.max_delay_ms value must be at least sum of <.min_delay_ms,\ngot: 200"),
+			},
+		},
+	})
+}
+
+// Reference: https://github.com/hashicorp/terraform-provider-http/issues/388
+func TestDataSource_RequestBody(t *testing.T) {
+	t.Parallel()
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+
+		requestBody, err := io.ReadAll(r.Body)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`Request Body Read Error: ` + err.Error()))
+
+			return
+		}
+
+		// If the request body is empty or a test string, return a 200 OK with a response body.
+		if len(requestBody) == 0 || string(requestBody) == "test" {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`test response body`))
+
+			return
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`request body (` + string(requestBody) + `) was not empty or "test"`))
+	}))
+	defer svr.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					data "http" "test" {
+						url = "%s"
+					}`, svr.URL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.test", "status_code", "200"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+					data "http" "test" {
+						request_body = "test"
+						url          = %q
+					}`, svr.URL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.test", "status_code", "200"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+					data "http" "test" {
+						request_body = "not-test"
+						url          = %q
+					}`, svr.URL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.test", "status_code", "400"),
+				),
 			},
 		},
 	})
