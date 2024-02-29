@@ -200,7 +200,6 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	requestURL := model.URL.ValueString()
 	method := model.Method.ValueString()
 	requestHeaders := model.RequestHeaders
-	requestBody := strings.NewReader(model.RequestBody.ValueString())
 
 	if method == "" {
 		method = "GET"
@@ -284,13 +283,27 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		retryClient.RetryWaitMax = time.Duration(retry.MaxDelay.ValueInt64()) * time.Millisecond
 	}
 
-	request, err := retryablehttp.NewRequestWithContext(ctx, method, requestURL, requestBody)
+	request, err := retryablehttp.NewRequestWithContext(ctx, method, requestURL, nil)
+
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating request",
 			fmt.Sprintf("Error creating request: %s", err),
 		)
 		return
+	}
+
+	if !model.RequestBody.IsNull() {
+		err = request.SetBody(strings.NewReader(model.RequestBody.ValueString()))
+
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Setting Request Body",
+				"An unexpected error occurred while setting the request body: "+err.Error(),
+			)
+
+			return
+		}
 	}
 
 	for name, value := range requestHeaders.Elements() {
