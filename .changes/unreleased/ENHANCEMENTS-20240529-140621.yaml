@@ -1,0 +1,5 @@
+kind: ENHANCEMENTS
+body: Make it to be a Go package
+time: 2024-05-29T14:06:21.92834-04:00
+custom:
+    Issue: "427"
