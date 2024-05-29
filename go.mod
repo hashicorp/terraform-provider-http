@@ -1,4 +1,4 @@
-module github.com/hashicorp/terraform-provider-http
+module github.com/hashicorp/terraform-provider-http/v3
 
 go 1.21
 
