@@ -1,0 +1,5 @@
+kind: BUG FIXES
+body: 'data-source/http: Avoid potentially leaking URL-embedded basic authentication credentials in logs and error messages'
+time: 2024-05-30T14:24:30.946343-07:00
+custom:
+    Issue: "429"
