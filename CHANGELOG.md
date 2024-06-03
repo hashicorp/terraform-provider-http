@@ -1,3 +1,9 @@
+## 3.4.3 (June 03, 2024)
+
+BUG FIXES:
+
+* data-source/http: Avoid potentially leaking URL-embedded basic authentication credentials in logs and error messages ([#429](https://github.com/hashicorp/terraform-provider-http/issues/429))
+
 ## 3.4.2 (February 29, 2024)
 
 NOTES:
