@@ -325,7 +325,6 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	hostHeader := request.Header.Get("Host")
 	if hostHeader != "" && model.AllowHostOverride.ValueBool() {
 		request.Host = hostHeader
-		request.Request.Host = hostHeader
 		request.URL.Host = hostHeader
 	}
 
