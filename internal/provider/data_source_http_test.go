@@ -602,6 +602,113 @@ func TestDataSource_UnsupportedInsecureCaCert(t *testing.T) {
 	})
 }
 
+func TestDataSource_AllowHostOverrideTrue_200(t *testing.T) {
+	testServerA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("X-Single", "foo")
+		w.Header().Add("X-Double", "1")
+		w.Header().Add("X-Double", "2")
+		_, err := w.Write([]byte("1.0.0"))
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	defer testServerA.Close()
+
+	testServerB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("X-Single", "bar")
+		w.Header().Add("X-Double", "3")
+		w.Header().Add("X-Double", "4")
+		_, err := w.Write([]byte("2.0.0"))
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	defer testServerB.Close()
+
+	testServerBUrl, err := url.Parse(testServerB.URL)
+	if err != nil {
+		t.Errorf("error parsing testServerB URL: %s", err)
+	}
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+								request_headers = {
+									"Host" = "%s"
+								}
+								allow_host_override = true
+							}`, testServerA.URL, testServerBUrl.Host),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "2.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "bar"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "3, 4"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_AllowHostOverrideFalse_200(t *testing.T) {
+	testServerA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("X-Single", "foo")
+		w.Header().Add("X-Double", "1")
+		w.Header().Add("X-Double", "2")
+		_, err := w.Write([]byte("1.0.0"))
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	defer testServerA.Close()
+
+	testServerB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("X-Single", "bar")
+		w.Header().Add("X-Double", "3")
+		w.Header().Add("X-Double", "4")
+		_, err := w.Write([]byte("2.0.0"))
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	defer testServerB.Close()
+
+	testServerBUrl, err := url.Parse(testServerB.URL)
+	if err != nil {
+		t.Errorf("error parsing testServerB URL: %s", err)
+	}
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+								request_headers = {
+									"Host" = "%s"
+								}
+							}`, testServerA.URL, testServerBUrl.Host),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foo"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
 // testProxiedURL is a hardcoded URL used in acceptance testing where it is
 // expected that a locally started HTTP proxy will handle the request.
 //

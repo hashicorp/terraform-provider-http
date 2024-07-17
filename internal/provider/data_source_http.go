@@ -111,6 +111,11 @@ a 5xx-range (except 501) status code is received. For further details see
 				},
 			},
 
+			"allow_host_override": schema.BoolAttribute{
+				Description: "Allows the `Host` header defined in `request_headers` to override the host of the request. Defaults to `false`",
+				Optional:    true,
+			},
+
 			"response_body": schema.StringAttribute{
 				Description: "The response body returned as a string.",
 				Computed:    true,
@@ -317,6 +322,13 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		request.Header.Set(name, header)
 	}
 
+	hostHeader := request.Header.Get("Host")
+	if hostHeader != "" && model.AllowHostOverride.ValueBool() {
+		request.Host = hostHeader
+		request.Request.Host = hostHeader
+		request.URL.Host = hostHeader
+	}
+
 	response, err := retryClient.Do(request)
 	if err != nil {
 		target := &url.Error{}
@@ -395,6 +407,7 @@ type modelV0 struct {
 	RequestBody        types.String `tfsdk:"request_body"`
 	RequestTimeout     types.Int64  `tfsdk:"request_timeout_ms"`
 	Retry              types.Object `tfsdk:"retry"`
+	AllowHostOverride  types.Bool   `tfsdk:"allow_host_override"`
 	ResponseHeaders    types.Map    `tfsdk:"response_headers"`
 	CaCertificate      types.String `tfsdk:"ca_cert_pem"`
 	Insecure           types.Bool   `tfsdk:"insecure"`
