@@ -1,0 +1,6 @@
+kind: BUG FIXES
+body: 'data-source/http: allow the `Host` request header to be sent as the http request
+  host.'
+time: 2024-07-19T14:36:06.795798-04:00
+custom:
+  Issue: "440"

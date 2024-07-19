@@ -1,6 +1,0 @@
-kind: FEATURES
-body: 'data-source/http: Add new `allow_host_override` attribute that allows the `Host`
-  request header to override the http request host.'
-time: 2024-07-17T16:56:42.91218-04:00
-custom:
-  Issue: "440"
