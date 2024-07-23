@@ -315,6 +315,9 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		}
 
 		request.Header.Set(name, header)
+		if name == "Host" {
+			request.Host = header
+		}
 	}
 
 	response, err := retryClient.Do(request)

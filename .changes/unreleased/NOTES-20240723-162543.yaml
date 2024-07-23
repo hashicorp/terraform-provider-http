@@ -1,0 +1,17 @@
+kind: NOTES
+body: |+
+  data-source/http: Previous versions of this provider ignored any `Host` headers specified in the `request_headers` attribute when setting the HTTP request. Any specified `Host` request headers will now override the `url` attribute host.
+  
+  For example, in the following configuration:
+  ```hcl
+  data "http" "example" {
+    url      = "https://www.example.com"
+    request_headers = {
+      Host = "www.differentexample.com"
+    }
+  }
+  ```
+  The HTTP request host will now be `www.differentexample.com` instead of `www.example.com`.
+time: 2024-07-23T16:25:43.160519-04:00
+custom:
+  Issue: "440"

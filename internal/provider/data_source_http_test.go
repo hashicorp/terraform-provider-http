@@ -602,6 +602,49 @@ func TestDataSource_UnsupportedInsecureCaCert(t *testing.T) {
 	})
 }
 
+func TestDataSource_HostRequestHeaderOverride_200(t *testing.T) {
+	altHost := "alt-test-host"
+
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Host != altHost {
+			w.WriteHeader(400)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("X-Single", "foobar")
+		w.Header().Add("X-Double", "1")
+		w.Header().Add("X-Double", "2")
+		_, err := w.Write([]byte("1.0.0"))
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+								request_headers = {
+									"Host" = "%s"
+								}
+							}`, testServer.URL, altHost),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Content-Type", "text/plain"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
+				),
+			},
+		},
+	})
+}
+
 // testProxiedURL is a hardcoded URL used in acceptance testing where it is
 // expected that a locally started HTTP proxy will handle the request.
 //
