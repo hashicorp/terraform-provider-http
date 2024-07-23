@@ -607,7 +607,7 @@ func TestDataSource_HostRequestHeaderOverride_200(t *testing.T) {
 
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Host != altHost {
-			w.WriteHeader(404)
+			w.WriteHeader(400)
 			return
 		}
 

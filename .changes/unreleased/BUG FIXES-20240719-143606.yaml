@@ -1,6 +1,5 @@
 kind: BUG FIXES
-body: 'data-source/http: allow the `Host` request header to be sent as the http request
-  host.'
+body: 'data-source/http: Allow `Host` header in `request_headers` to be set on HTTP request'
 time: 2024-07-19T14:36:06.795798-04:00
 custom:
   Issue: "440"
