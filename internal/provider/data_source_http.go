@@ -315,7 +315,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		}
 
 		request.Header.Set(name, header)
-		if name == "Host" {
+		if strings.ToLower(name) == "host" {
 			request.Host = header
 		}
 	}
