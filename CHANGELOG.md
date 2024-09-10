@@ -1,3 +1,9 @@
+## 3.4.5 (September 10, 2024)
+
+NOTES:
+
+* all: This release introduces no functional changes. It does however include dependency updates which address upstream CVEs. ([#452](https://github.com/hashicorp/terraform-provider-http/issues/452))
+
 ## 3.4.4 (July 31, 2024)
 
 NOTES:
