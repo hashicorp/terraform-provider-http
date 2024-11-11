@@ -434,6 +434,36 @@ func TestDataSource_HEAD_204(t *testing.T) {
 	})
 }
 
+func TestDataSource_PATCH_200(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "PATCH" {
+			w.Header().Set("Content-Type", "text/plain")
+			_, err := w.Write([]byte("created"))
+			if err != nil {
+				t.Errorf("error writing body: %s", err)
+			}
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+								method = "PATCH"
+							}`, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "created"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
 func TestDataSource_UnsupportedMethod(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	}))
