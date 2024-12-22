@@ -81,13 +81,14 @@ a 5xx-range (except 501) status code is received. For further details see
 			"method": schema.StringAttribute{
 				Description: "The HTTP Method for the request. " +
 					"Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, " +
-					"`GET`, `HEAD`, and `POST`. `POST` support is only intended for read-only URLs, such as submitting a search.",
+					"`GET`, `HEAD`, `PATCH` and `POST`. `POST` support is only intended for read-only URLs, such as submitting a search.",
 				Optional: true,
 				Validators: []validator.String{
 					stringvalidator.OneOf([]string{
 						http.MethodGet,
 						http.MethodPost,
 						http.MethodHead,
+						http.MethodPatch,
 					}...),
 				},
 			},
