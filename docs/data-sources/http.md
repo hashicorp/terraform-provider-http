@@ -4,14 +4,16 @@ subcategory: ""
 description: |-
   The http data source makes an HTTP GET request to the given URL and exports
   information about the response.
-  The given URL may be either an http or https URL. At present this resource
-  can only retrieve data from URLs that respond with text/* or
-  application/json content types, and expects the result to be UTF-8 encoded
-  regardless of the returned content type header.
+  The given URL may be either an http or https URL. This resource
+  will issue a warning if the result is not UTF-8 encoded.
   ~> Important Although https URLs can be used, there is currently no
   mechanism to authenticate the remote server except for general verification of
   the server certificate's chain of trust. Data retrieved from servers not under
   your control should be treated as untrustworthy.
+  By default, there are no retries. Configuring the retry block will result in
+  retries if an error is returned by the client (e.g., connection errors) or if
+  a 5xx-range (except 501) status code is received. For further details see
+  go-retryablehttp https://pkg.go.dev/github.com/hashicorp/go-retryablehttp.
 ---
 
 # http (Data Source)
@@ -19,15 +21,18 @@ description: |-
 The `http` data source makes an HTTP GET request to the given URL and exports
 information about the response.
 
-The given URL may be either an `http` or `https` URL. At present this resource
-can only retrieve data from URLs that respond with `text/*` or
-`application/json` content types, and expects the result to be UTF-8 encoded
-regardless of the returned content type header.
+The given URL may be either an `http` or `https` URL. This resource
+will issue a warning if the result is not UTF-8 encoded.
 
 ~> **Important** Although `https` URLs can be used, there is currently no
 mechanism to authenticate the remote server except for general verification of
 the server certificate's chain of trust. Data retrieved from servers not under
 your control should be treated as untrustworthy.
+
+By default, there are no retries. Configuring the retry block will result in
+retries if an error is returned by the client (e.g., connection errors) or if 
+a 5xx-range (except 501) status code is received. For further details see 
+[go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp).
 
 ## Example Usage
 
@@ -150,11 +155,23 @@ resource "null_resource" "example" {
 - `method` (String) The HTTP Method for the request. Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, `GET`, `HEAD`, and `POST`. `POST` support is only intended for read-only URLs, such as submitting a search.
 - `request_body` (String) The request body as a string.
 - `request_headers` (Map of String) A map of request header field names and values.
+- `request_timeout_ms` (Number) The request timeout in milliseconds.
+- `retry` (Block, Optional) Retry request configuration. By default there are no retries. Configuring this block will result in retries if an error is returned by the client (e.g., connection errors) or if a 5xx-range (except 501) status code is received. For further details see [go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp). (see [below for nested schema](#nestedblock--retry))
 
 ### Read-Only
 
 - `body` (String, Deprecated) The response body returned as a string. **NOTE**: This is deprecated, use `response_body` instead.
 - `id` (String) The URL used for the request.
 - `response_body` (String) The response body returned as a string.
+- `response_body_base64` (String) The response body encoded as base64 (standard) as defined in [RFC 4648](https://datatracker.ietf.org/doc/html/rfc4648#section-4).
 - `response_headers` (Map of String) A map of response header field names and values. Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).
 - `status_code` (Number) The HTTP response status code.
+
+<a id="nestedblock--retry"></a>
+### Nested Schema for `retry`
+
+Optional:
+
+- `attempts` (Number) The number of times the request is to be retried. For example, if 2 is specified, the request will be tried a maximum of 3 times.
+- `max_delay_ms` (Number) The maximum delay between retry requests in milliseconds.
+- `min_delay_ms` (Number) The minimum delay between retry requests in milliseconds.

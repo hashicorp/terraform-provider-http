@@ -35,9 +35,9 @@ version it implements, and Terraform:
 ## Requirements
 
 * [Terraform](https://www.terraform.io/downloads)
-* [Go](https://go.dev/doc/install) (1.19)
+* [Go](https://go.dev/doc/install) (1.22)
 * [GNU Make](https://www.gnu.org/software/make/)
-* [golangci-lint](https://golangci-lint.run/usage/install/#local-installation) (optional)
+* [golangci-lint](https://golangci-lint.run/welcome/install/#local-installation) (optional)
 
 ## Development
 

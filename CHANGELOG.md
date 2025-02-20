@@ -1,3 +1,71 @@
+## 3.4.5 (September 10, 2024)
+
+NOTES:
+
+* all: This release introduces no functional changes. It does however include dependency updates which address upstream CVEs. ([#452](https://github.com/hashicorp/terraform-provider-http/issues/452))
+
+## 3.4.4 (July 31, 2024)
+
+NOTES:
+
+* data-source/http: Previous versions of this provider ignored any `Host` headers specified in the `request_headers` attribute when setting the HTTP request. Any specified `Host` request header will now be set on the HTTP request.
+
+For example, in the following configuration:
+```hcl
+data "http" "example" {
+  url      = "https://www.example.com"
+  request_headers = {
+    Host = "www.differentexample.com"
+  }
+}
+```
+The HTTP request URL host is still `www.example.com` but the HTTP request `Host` header will now be `www.differentexample.com` instead of `www.example.com`.
+ ([#440](https://github.com/hashicorp/terraform-provider-http/issues/440))
+
+BUG FIXES:
+
+* data-source/http: Allow `Host` header in `request_headers` to be set on HTTP request ([#440](https://github.com/hashicorp/terraform-provider-http/issues/440))
+
+## 3.4.3 (June 03, 2024)
+
+BUG FIXES:
+
+* data-source/http: Avoid potentially leaking URL-embedded basic authentication credentials in logs and error messages ([#429](https://github.com/hashicorp/terraform-provider-http/issues/429))
+
+## 3.4.2 (February 29, 2024)
+
+NOTES:
+
+* data-source/http: Previously the HTTP request would unexpectedly always contain a body for all requests. Certain HTTP server implementations are sensitive to this data existing if it is not expected. Requests now only contain a request body if the `request_body` attribute is explicitly set. To exactly preserve the previous behavior, set `request_body = ""`. ([#388](https://github.com/hashicorp/terraform-provider-http/issues/388))
+
+BUG FIXES:
+
+* data-source/http: Ensured HTTP request body is not sent unless configured ([#388](https://github.com/hashicorp/terraform-provider-http/issues/388))
+
+## 3.4.1 (December 19, 2023)
+
+BUG FIXES:
+
+* data-source/http: Includes update to go-retryablehttp fixing preservation of request body on temporary redirects or re-established HTTP/2 connections ([#346](https://github.com/hashicorp/terraform-provider-http/issues/346))
+
+## 3.4.0 (June 21, 2023)
+
+ENHANCEMENTS:
+
+* data-source/http: `response_body_base64` has been added and contains a standard base64 encoding of the response body ([#158](https://github.com/hashicorp/terraform-provider-http/issues/158))
+* data-source/http: Replaced issuing warning on the basis of possible non-text `Content-Type` with issuing warning if response body does not contain valid UTF-8. ([#158](https://github.com/hashicorp/terraform-provider-http/issues/158))
+
+## 3.3.0 (April 25, 2023)
+
+NOTES:
+
+* This Go module has been updated to Go 1.19 per the [Go support policy](https://golang.org/doc/devel/release.html#policy). Any consumers building on earlier Go versions may experience errors. ([#245](https://github.com/hashicorp/terraform-provider-http/issues/245))
+
+ENHANCEMENTS:
+
+* data-source/http: Added `retry` with nested `attempts`, `max_delay_ms` and `min_delay_ms` ([#151](https://github.com/hashicorp/terraform-provider-http/issues/151))
+* data-source/http: Added `request_timeout_ms` ([#151](https://github.com/hashicorp/terraform-provider-http/issues/151))
+
 ## 3.2.1 (November 7, 2022)
 
 BUG FIXES
