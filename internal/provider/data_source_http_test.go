@@ -18,9 +18,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
-	"github.com/hashicorp/terraform-plugin-testing/terraform"
-	"github.com/hashicorp/terraform-plugin-testing/tfversion"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestDataSource_200(t *testing.T) {
@@ -245,10 +244,6 @@ func TestDataSource_x509cert(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
-		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
-			//test fails in TF 0.14.x due to https://github.com/hashicorp/terraform-provider-http/issues/58
-			tfversion.SkipBetween(tfversion.Version0_14_0, tfversion.Version0_15_0),
-		},
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -475,6 +470,28 @@ EOF
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
 				),
+			},
+		},
+	})
+}
+
+func TestDataSource_WithClientCert(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	}))
+	defer testServer.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+data "http" "http_test" {
+  url = "%s"
+  ca_cert_pem = file("testdata/certs/ca.cert.pem")
+  client_cert_pem = file("testdata/certs/client.crt")
+  client_key_pem = file("testdata/certs/client.key")
+}
+`, testServer.URL),
 			},
 		},
 	})
@@ -944,11 +961,6 @@ func TestDataSource_ResponseBodyBinary(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
-		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
-			//test fails in TF 0.14.x due to quirk in behavior
-			//where a warning results in nothing being written to output.
-			tfversion.SkipBetween(tfversion.Version0_14_0, tfversion.Version0_15_0),
-		},
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
