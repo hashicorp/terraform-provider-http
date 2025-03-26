@@ -21,6 +21,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+	"github.com/hashicorp/terraform-plugin-testing/tfversion"
 )
 
 func TestDataSource_200(t *testing.T) {
@@ -38,6 +39,10 @@ func TestDataSource_200(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			//test fails in TF 0.14.x due to https://github.com/hashicorp/terraform-provider-http/issues/58
+			tfversion.SkipBetween(tfversion.Version0_14_0, tfversion.Version0_15_0),
+		},
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
