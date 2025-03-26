@@ -22,7 +22,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -274,8 +273,10 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	if !model.ClientCert.IsNull() && !model.ClientKey.IsNull() {
 		cert, err := tls.X509KeyPair([]byte(model.ClientCert.ValueString()), []byte(model.ClientKey.ValueString()))
 		if err != nil {
-			resp.Diagnostics.Append(diag.NewErrorDiagnostic("error creating x509 key pair",
-				fmt.Sprintf("error creating x509 key pair from provided pem blocks\n\nError: %s", err)))
+			resp.Diagnostics.AddError(
+				"error creating x509 key pair",
+				fmt.Sprintf("error creating x509 key pair from provided pem blocks\n\nError: %s", err),
+			)
 		}
 		clonedTr.TLSClientConfig.Certificates = []tls.Certificate{cert}
 	}
