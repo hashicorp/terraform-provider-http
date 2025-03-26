@@ -13,14 +13,14 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 )
 
 func generateCert(t *testing.T) (string, string) {
 	// Generate a new ECDSA private key
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err, "failed to generate private key")
+	if err != nil {
+		t.Fatalf("failed to generate private key: %v", err)
+	}
 
 	// Create certificate template
 	certTemplate := x509.Certificate{
@@ -40,7 +40,9 @@ func generateCert(t *testing.T) (string, string) {
 
 	// Self-sign the certificate
 	certDER, err := x509.CreateCertificate(rand.Reader, &certTemplate, &certTemplate, &priv.PublicKey, priv)
-	require.NoError(t, err, "failed to create certificate")
+	if err != nil {
+		t.Fatalf("failed to create certificate: %v", err)
+	}
 
 	// Filenames for the certificate and key
 	tmpDir := t.TempDir()
@@ -49,19 +51,27 @@ func generateCert(t *testing.T) (string, string) {
 
 	// Save the certificate to a file
 	certOut, err := os.Create(cert)
-	require.NoError(t, err, "failed to open cert.pem for writing")
+	if err != nil {
+		t.Fatalf("failed to open cert.pem for writing: %v", err)
+	}
 	defer certOut.Close()
-	err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-	require.NoError(t, err, "failed to write data to cert.pem")
+	if err = pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: certDER}); err != nil {
+		t.Fatalf("failed to write data to cert.pem: %v", err)
+	}
 
 	// Save the private key to a file
 	keyOut, err := os.Create(key)
-	require.NoError(t, err, "failed to open key.pem for writing")
+	if err != nil {
+		t.Fatalf("failed to open key.pem for writing: %v", err)
+	}
 	defer keyOut.Close()
 	privBytes, err := x509.MarshalECPrivateKey(priv)
-	require.NoError(t, err, "failed to marshal private key")
-	err = pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes})
-	require.NoError(t, err, "failed to write data to key.pem")
+	if err != nil {
+		t.Fatalf("failed to marshal private key: %v", err)
+	}
+	if err = pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: privBytes}); err != nil {
+		t.Fatalf("failed to write data to key.pem: %v", err)
+	}
 
 	return cert, key
 }
