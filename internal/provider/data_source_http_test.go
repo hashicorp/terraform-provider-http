@@ -4,6 +4,7 @@
 package provider
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -20,6 +21,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDataSource_200(t *testing.T) {
@@ -476,8 +479,22 @@ EOF
 }
 
 func TestDataSource_WithClientCert(t *testing.T) {
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	certfile, keyfile := generateCert(t)
+	cert, err := tls.LoadX509KeyPair(certfile, keyfile)
+	require.NoError(t, err, "failed to load client certificate")
+	testServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := io.WriteString(w, "OK\n")
+		assert.NoError(t, err)
 	}))
+	clientCAs := x509.NewCertPool()
+	clientCAs.AddCert(cert.Leaf)
+
+	testServer.TLS = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientCAs:    clientCAs,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+	}
+	testServer.StartTLS()
 	defer testServer.Close()
 
 	resource.UnitTest(t, resource.TestCase{
@@ -487,11 +504,24 @@ func TestDataSource_WithClientCert(t *testing.T) {
 				Config: fmt.Sprintf(`
 data "http" "http_test" {
   url = "%s"
-  ca_cert_pem = file("testdata/certs/ca.cert.pem")
-  client_cert_pem = file("testdata/certs/client.crt")
-  client_key_pem = file("testdata/certs/client.key")
+  ca_cert_pem = file("%s")
+  client_cert_pem = file("%s")
+  client_key_pem = file("%s")
 }
-`, testServer.URL),
+`, testServer.URL, certfile, certfile, keyfile),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "OK\n"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+data "http" "http_test" {
+  url = "%s"
+  ca_cert_pem = file("%s")
+}
+`, testServer.URL, certfile),
+				ExpectError: regexp.MustCompile(`remote error: tls: certificate`),
 			},
 		},
 	})
