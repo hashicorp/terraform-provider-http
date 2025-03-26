@@ -21,8 +21,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDataSource_200(t *testing.T) {
@@ -481,10 +479,14 @@ EOF
 func TestDataSource_WithClientCert(t *testing.T) {
 	certfile, keyfile := generateCert(t)
 	cert, err := tls.LoadX509KeyPair(certfile, keyfile)
-	require.NoError(t, err, "failed to load client certificate")
+	if err != nil {
+		t.Fatalf("failed to load client certificate: %v", err)
+	}
 	testServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, err := io.WriteString(w, "OK\n")
-		assert.NoError(t, err)
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
 	}))
 	clientCAs := x509.NewCertPool()
 	clientCAs.AddCert(cert.Leaf)
