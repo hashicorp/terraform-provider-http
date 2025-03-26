@@ -482,20 +482,20 @@ EOF
 }
 
 func TestDataSource_WithClientCert(t *testing.T) {
-	certfile, keyfile := generateCert(t)
-	cert, err := tls.LoadX509KeyPair(certfile, keyfile)
-	if err != nil {
-		t.Fatalf("failed to load client certificate: %v", err)
-	}
+	// Fire up a test server that requires a self-signed client certificate
 	testServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, err := io.WriteString(w, "OK\n")
 		if err != nil {
 			t.Errorf("error writing body: %s", err)
 		}
 	}))
+	certfile, keyfile := generateCert(t)
+	cert, err := tls.LoadX509KeyPair(certfile, keyfile)
+	if err != nil {
+		t.Fatalf("failed to load client certificate: %v", err)
+	}
 	clientCAs := x509.NewCertPool()
 	clientCAs.AddCert(cert.Leaf)
-
 	testServer.TLS = &tls.Config{
 		Certificates: []tls.Certificate{cert},
 		ClientCAs:    clientCAs,
