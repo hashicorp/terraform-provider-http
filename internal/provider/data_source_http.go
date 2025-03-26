@@ -130,7 +130,7 @@ a 5xx-range (except 501) status code is received. For further details see
 			},
 
 			"ca_cert_pem": schema.StringAttribute{
-				Description: "Certificate data of the Certificate Authority (CA) " +
+				Description: "Certificate Authority (CA) " +
 					"in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.",
 				Optional: true,
 				Validators: []validator.String{
@@ -139,7 +139,7 @@ a 5xx-range (except 501) status code is received. For further details see
 			},
 
 			"client_cert_pem": schema.StringAttribute{
-				Description: "Certificate data of the Client certificate " +
+				Description: "Client certificate " +
 					"in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.",
 				Optional: true,
 				Validators: []validator.String{
@@ -148,7 +148,7 @@ a 5xx-range (except 501) status code is received. For further details see
 			},
 
 			"client_key_pem": schema.StringAttribute{
-				Description: "Certificate data of the Client certificate " +
+				Description: "Client key " +
 					"in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.",
 				Optional: true,
 				Validators: []validator.String{
