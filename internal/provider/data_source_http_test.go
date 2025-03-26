@@ -541,10 +541,6 @@ func TestDataSource_WithCACertificateFalse(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
-		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
-			//test fails in TF 0.14.x due to https://github.com/hashicorp/terraform-provider-http/issues/58
-			tfversion.SkipBetween(tfversion.Version0_14_0, tfversion.Version0_15_0),
-		},
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -974,10 +970,6 @@ func TestDataSource_ResponseBodyText(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
-		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
-			//test fails in TF 0.14.x due to https://github.com/hashicorp/terraform-provider-http/issues/58
-			tfversion.SkipBetween(tfversion.Version0_14_0, tfversion.Version0_15_0),
-		},
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -1006,6 +998,10 @@ func TestDataSource_ResponseBodyBinary(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			//test fails in TF 0.14.x due to https://github.com/hashicorp/terraform-provider-http/issues/58
+			tfversion.SkipBetween(tfversion.Version0_14_0, tfversion.Version0_15_0),
+		},
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
