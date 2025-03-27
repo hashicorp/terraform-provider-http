@@ -277,6 +277,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 				"error creating x509 key pair",
 				fmt.Sprintf("error creating x509 key pair from provided pem blocks\n\nError: %s", err),
 			)
+			return
 		}
 		clonedTr.TLSClientConfig.Certificates = []tls.Certificate{cert}
 	}
