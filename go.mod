@@ -1,6 +1,7 @@
 module github.com/terraform-providers/terraform-provider-http
 
 go 1.23.7
+toolchain go1.24.1
 
 require (
 	github.com/google/uuid v1.6.0
@@ -10,7 +11,7 @@ require (
 	github.com/hashicorp/terraform-plugin-go v0.26.0
 	github.com/hashicorp/terraform-plugin-log v0.9.0
 	github.com/hashicorp/terraform-plugin-testing v1.12.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 )
 
 require (
