@@ -129,11 +129,29 @@ a 5xx-range (except 501) status code is received. For further details see
 			},
 
 			"ca_cert_pem": schema.StringAttribute{
-				Description: "Certificate data of the Certificate Authority (CA) " +
+				Description: "Certificate Authority (CA) " +
 					"in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.",
 				Optional: true,
 				Validators: []validator.String{
 					stringvalidator.ConflictsWith(path.MatchRoot("insecure")),
+				},
+			},
+
+			"client_cert_pem": schema.StringAttribute{
+				Description: "Client certificate " +
+					"in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.",
+				Optional: true,
+				Validators: []validator.String{
+					stringvalidator.AlsoRequires(path.MatchRoot("client_key_pem")),
+				},
+			},
+
+			"client_key_pem": schema.StringAttribute{
+				Description: "Client key " +
+					"in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.",
+				Optional: true,
+				Validators: []validator.String{
+					stringvalidator.AlsoRequires(path.MatchRoot("client_cert_pem")),
 				},
 			},
 
@@ -250,6 +268,18 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 			clonedTr.TLSClientConfig = &tls.Config{}
 		}
 		clonedTr.TLSClientConfig.RootCAs = caCertPool
+	}
+
+	if !model.ClientCert.IsNull() && !model.ClientKey.IsNull() {
+		cert, err := tls.X509KeyPair([]byte(model.ClientCert.ValueString()), []byte(model.ClientKey.ValueString()))
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"error creating x509 key pair",
+				fmt.Sprintf("error creating x509 key pair from provided pem blocks\n\nError: %s", err),
+			)
+			return
+		}
+		clonedTr.TLSClientConfig.Certificates = []tls.Certificate{cert}
 	}
 
 	var retry retryModel
@@ -400,6 +430,8 @@ type modelV0 struct {
 	Retry              types.Object `tfsdk:"retry"`
 	ResponseHeaders    types.Map    `tfsdk:"response_headers"`
 	CaCertificate      types.String `tfsdk:"ca_cert_pem"`
+	ClientCert         types.String `tfsdk:"client_cert_pem"`
+	ClientKey          types.String `tfsdk:"client_key_pem"`
 	Insecure           types.Bool   `tfsdk:"insecure"`
 	ResponseBody       types.String `tfsdk:"response_body"`
 	Body               types.String `tfsdk:"body"`

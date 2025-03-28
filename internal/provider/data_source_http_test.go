@@ -4,6 +4,7 @@
 package provider
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -475,6 +476,59 @@ EOF
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
 				),
+			},
+		},
+	})
+}
+
+func TestDataSource_WithClientCert(t *testing.T) {
+	// Fire up a test server that requires a self-signed client certificate
+	testServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := io.WriteString(w, "OK\n")
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	certfile, keyfile := generateCert(t)
+	cert, err := tls.LoadX509KeyPair(certfile, keyfile)
+	if err != nil {
+		t.Fatalf("failed to load client certificate: %v", err)
+	}
+	clientCAs := x509.NewCertPool()
+	clientCAs.AddCert(cert.Leaf)
+	testServer.TLS = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientCAs:    clientCAs,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+	}
+	testServer.StartTLS()
+	defer testServer.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+data "http" "http_test" {
+  url = "%s"
+  ca_cert_pem = file("%s")
+  client_cert_pem = file("%s")
+  client_key_pem = file("%s")
+}
+`, testServer.URL, certfile, certfile, keyfile),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "OK\n"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+data "http" "http_test" {
+  url = "%s"
+  ca_cert_pem = file("%s")
+}
+`, testServer.URL, certfile),
+				ExpectError: regexp.MustCompile(`remote error: tls: certificate`),
 			},
 		},
 	})
