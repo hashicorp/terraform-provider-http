@@ -1,0 +1,5 @@
+kind: FEATURES
+body: Add mTLS support (client cert & key) to http datasource
+time: 2025-03-31T11:46:41.463676+02:00
+custom:
+    Issue: "211"
