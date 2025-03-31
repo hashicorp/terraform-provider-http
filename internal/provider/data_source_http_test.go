@@ -508,12 +508,13 @@ func TestDataSource_WithClientCert(t *testing.T) {
 		ProtoV5ProviderFactories: protoV5ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
+				// Note: %q is used to handle backspaces in the filepath on windows (\ becomes \\)
 				Config: fmt.Sprintf(`
 data "http" "http_test" {
   url = "%s"
-  ca_cert_pem = file("%s")
-  client_cert_pem = file("%s")
-  client_key_pem = file("%s")
+  ca_cert_pem = file(%q)
+  client_cert_pem = file(%q)
+  client_key_pem = file(%q)
 }
 `, testServer.URL, certfile, certfile, keyfile),
 				Check: resource.ComposeTestCheckFunc(
@@ -525,7 +526,7 @@ data "http" "http_test" {
 				Config: fmt.Sprintf(`
 data "http" "http_test" {
   url = "%s"
-  ca_cert_pem = file("%s")
+  ca_cert_pem = file(%q)
 }
 `, testServer.URL, certfile),
 				ExpectError: regexp.MustCompile(`remote error: tls: certificate`),
