@@ -4,7 +4,6 @@
 #
 # Reference: https://github.com/hashicorp/terraform-provider-crt-example/blob/main/.github/workflows/README.md
 #
-# TODO comments are provided to guide you through customizing this workflow for your provider.
 
 name: build
 
@@ -20,7 +19,7 @@ name: build
 on: [workflow_dispatch, push]
 
 env:
-  PKG_NAME: "terraform-provider-crt-example" # TODO: Update with the name of your provider
+  PKG_NAME: "terraform-provider-http"
 
 jobs:
   # Detects the Go toolchain version to use for product builds.
@@ -79,6 +78,7 @@ jobs:
           version: ${{ needs.set-product-version.outputs.product-version }}
           product: ${{ env.PKG_NAME }}
           repositoryOwner: "hashicorp"
+          repository: ${{ github.event.repository.name }}
       - uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: metadata.json
@@ -127,8 +127,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
-      # TODO: Customize `matrix` for your provider. Compare to existing .goreleaser.yml.
-      # Verify expected Artifacts list for a workflow run.
       matrix:
         goos: [freebsd, windows, linux, darwin]
         goarch: ["386", "amd64", "arm", "arm64"]
@@ -139,24 +137,23 @@ jobs:
             goarch: arm64
           - goos: windows
             goarch: arm
-          - goos: darwin
-            goarch: 386
-          - goos: darwin
-            goarch: arm
+        # TODO: these aren't in our existing .goreleaser.yml, should we start ignoring them?
+        #   - goos: darwin
+        #     goarch: 386
+        #   - goos: darwin
+        #     goarch: arm
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: hashicorp/actions-go-build@v1
-        # TODO: Customize `env` for your provider build. Compare to existing .goreleaser.yml.
         env:
           CGO_ENABLED: 0
+          # TODO: technically we don't have all of these, but the first two seem useful
           BASE_VERSION: ${{ needs.set-product-version.outputs.product-base-version }}
           PRERELEASE_VERSION: ${{ needs.set-product-version.outputs.product-prerelease-version}}
-          METADATA_VERSION: ${{ env.METADATA }}
+          # METADATA_VERSION: ${{ env.METADATA }}
         with:
-          # TODO: Customize `bin_name` for your provider. Compare to existing .goreleaser.yml.
-          # Protocol v6 providers should omit the `_x5` suffix.
           bin_name: "${{ env.PKG_NAME }}_v${{ needs.set-product-version.outputs.product-version }}_x5"
           product_name: ${{ env.PKG_NAME }}
           product_version: ${{ needs.set-product-version.outputs.product-version }}
@@ -164,15 +161,12 @@ jobs:
           os: ${{ matrix.goos }}
           arch: ${{ matrix.goarch }}
           reproducible: report
-          # TODO: Customize `go build` flags for your provider. Compare to existing .goreleaser.yml.
-          # TODO: Customize `ldflags` for your provider. Ensure that the import path and name in the -X flag
-          # are correct for your provider.
           instructions: |
             go build \
               -o "$BIN_PATH" \
               -trimpath \
               -buildvcs=false \
-              -ldflags "-s -w -X 'main.version=${{ needs.set-product-version.outputs.product-version }}'"
+              -ldflags "-s -w -X 'main.Version=${{ needs.set-product-version.outputs.product-version }}'"
             cp LICENSE "$TARGET_DIR/LICENSE.txt"
 
   whats-next:
