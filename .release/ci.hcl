@@ -6,19 +6,19 @@
 
 schema = "2"
 
-project "terraform-provider-crt-example" { // TODO: Update project name to match your provider
+project "terraform-provider-http" {
   // team is currently unused and has no meaning
   // but is required to be non-empty by CRT orchestator
   team = "_UNUSED_"
 
   slack {
-    notification_channel = "C02BASDVCDT" // #feed-terraform-sdk TODO: Update channel to match your Slack channel for release notifications
+    notification_channel = "C02BASDVCDT" // #feed-terraform-sdk
   }
 
   github {
     organization     = "hashicorp"
-    repository       = "terraform-provider-crt-example" # TODO: Update repository name to match your provider
-    release_branches = ["main", "release/**"] # TODO: Update to match your release workflow
+    repository       = "terraform-provider-http"
+    release_branches = ["main", "release/**"]
   }
 }
 
@@ -30,7 +30,7 @@ event "build" {
     depends = ["merge"]
 
     organization = "hashicorp"
-    repository   = "terraform-provider-crt-example" # TODO: Update repository name to match your provider
+    repository   = "terraform-provider-http"
     workflow     = "build"
   }
 }
