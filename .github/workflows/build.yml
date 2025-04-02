@@ -137,11 +137,10 @@ jobs:
             goarch: arm64
           - goos: windows
             goarch: arm
-        # TODO: these aren't in our existing .goreleaser.yml, should we start ignoring them?
-        #   - goos: darwin
-        #     goarch: 386
-        #   - goos: darwin
-        #     goarch: arm
+          - goos: darwin
+            goarch: 386
+          - goos: darwin
+            goarch: arm
 
     name: Go ${{ needs.get-go-version.outputs.go-version }} ${{ matrix.goos }} ${{ matrix.goarch }} build
     steps:
