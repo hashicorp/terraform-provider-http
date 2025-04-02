@@ -165,7 +165,7 @@ jobs:
               -o "$BIN_PATH" \
               -trimpath \
               -buildvcs=false \
-              -ldflags "-s -w -X 'main.Version=${{ needs.set-product-version.outputs.product-version }}'"
+              -ldflags "-s -w"
             cp LICENSE "$TARGET_DIR/LICENSE.txt"
 
   whats-next:
