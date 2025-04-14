@@ -187,7 +187,9 @@ class MyConvertedCode(TerraformStack):
 
 ### Optional
 
-- `ca_cert_pem` (String) Certificate data of the Certificate Authority (CA) in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.
+- `ca_cert_pem` (String) Certificate Authority (CA) in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.
+- `client_cert_pem` (String) Client certificate in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.
+- `client_key_pem` (String) Client key in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.
 - `insecure` (Boolean) Disables verification of the server's certificate chain and hostname. Defaults to `false`
 - `method` (String) The HTTP Method for the request. Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, `GET`, `HEAD`, and `POST`. `POST` support is only intended for read-only URLs, such as submitting a search.
 - `request_body` (String) The request body as a string.
@@ -212,4 +214,4 @@ Optional:
 - `attempts` (Number) The number of times the request is to be retried. For example, if 2 is specified, the request will be tried a maximum of 3 times.
 - `max_delay_ms` (Number) The maximum delay between retry requests in milliseconds.
 - `min_delay_ms` (Number) The minimum delay between retry requests in milliseconds.
-<!-- cache-key: cdktf-0.20.8 input-3f3d9826beac1ee235306177655bd6aa2e038f33a07d244843f3a9d3c82a31de -->
+<!-- cache-key: cdktf-0.20.8 input-1974241da61884ccce9eb0e8daad7b086f11568518c873f8c4d02c9c183af9ef -->
