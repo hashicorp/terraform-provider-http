@@ -98,6 +98,14 @@ a 5xx-range (except 501) status code is received. For further details see
 				Optional:    true,
 			},
 
+			"sensitive_request_headers": schema.MapAttribute{
+				Description: "A map of request header field names and values regarded as sensitive. " +
+					"The header values are masked in CLI output, as well as Terraform state.",
+				ElementType: types.StringType,
+				Optional:    true,
+				Sensitive:   true,
+			},
+
 			"request_body": schema.StringAttribute{
 				Description: "The request body as a string.",
 				Optional:    true,
@@ -218,6 +226,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	requestURL := model.URL.ValueString()
 	method := model.Method.ValueString()
 	requestHeaders := model.RequestHeaders
+	sensitiveRequestHeaders := model.SensitiveRequestHeaders
 
 	if method == "" {
 		method = "GET"
@@ -350,6 +359,20 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		}
 	}
 
+	for name, value := range sensitiveRequestHeaders.Elements() {
+		var header string
+		diags = tfsdk.ValueAs(ctx, value, &header)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		request.Header.Set(name, header)
+		if strings.ToLower(name) == "host" {
+			request.Host = header
+		}
+	}
+
 	response, err := retryClient.Do(request)
 	if err != nil {
 		target := &url.Error{}
@@ -416,27 +439,37 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	model.ResponseBodyBase64 = types.StringValue(responseBodyBase64Std)
 	model.StatusCode = types.Int64Value(int64(response.StatusCode))
 
+	// Override SensitiveRequestHeaders' header values with a mask.
+	sensitiveHeaders := map[string]string{}
+	for name, _ := range sensitiveRequestHeaders.Elements() {
+		sensitiveHeaders[name] = "*****"
+	}
+
+	maskedSensitiveHeaders, _ := types.MapValueFrom(ctx, types.StringType, sensitiveHeaders)
+	model.SensitiveRequestHeaders = maskedSensitiveHeaders
+
 	diags = resp.State.Set(ctx, model)
 	resp.Diagnostics.Append(diags...)
 }
 
 type modelV0 struct {
-	ID                 types.String `tfsdk:"id"`
-	URL                types.String `tfsdk:"url"`
-	Method             types.String `tfsdk:"method"`
-	RequestHeaders     types.Map    `tfsdk:"request_headers"`
-	RequestBody        types.String `tfsdk:"request_body"`
-	RequestTimeout     types.Int64  `tfsdk:"request_timeout_ms"`
-	Retry              types.Object `tfsdk:"retry"`
-	ResponseHeaders    types.Map    `tfsdk:"response_headers"`
-	CaCertificate      types.String `tfsdk:"ca_cert_pem"`
-	ClientCert         types.String `tfsdk:"client_cert_pem"`
-	ClientKey          types.String `tfsdk:"client_key_pem"`
-	Insecure           types.Bool   `tfsdk:"insecure"`
-	ResponseBody       types.String `tfsdk:"response_body"`
-	Body               types.String `tfsdk:"body"`
-	ResponseBodyBase64 types.String `tfsdk:"response_body_base64"`
-	StatusCode         types.Int64  `tfsdk:"status_code"`
+	ID                      types.String `tfsdk:"id"`
+	URL                     types.String `tfsdk:"url"`
+	Method                  types.String `tfsdk:"method"`
+	RequestHeaders          types.Map    `tfsdk:"request_headers"`
+	SensitiveRequestHeaders types.Map    `tfsdk:"sensitive_request_headers"`
+	RequestBody             types.String `tfsdk:"request_body"`
+	RequestTimeout          types.Int64  `tfsdk:"request_timeout_ms"`
+	Retry                   types.Object `tfsdk:"retry"`
+	ResponseHeaders         types.Map    `tfsdk:"response_headers"`
+	CaCertificate           types.String `tfsdk:"ca_cert_pem"`
+	ClientCert              types.String `tfsdk:"client_cert_pem"`
+	ClientKey               types.String `tfsdk:"client_key_pem"`
+	Insecure                types.Bool   `tfsdk:"insecure"`
+	ResponseBody            types.String `tfsdk:"response_body"`
+	Body                    types.String `tfsdk:"body"`
+	ResponseBodyBase64      types.String `tfsdk:"response_body_base64"`
+	StatusCode              types.Int64  `tfsdk:"status_code"`
 }
 
 type retryModel struct {

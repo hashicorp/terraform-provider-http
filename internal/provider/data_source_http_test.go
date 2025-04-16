@@ -149,6 +149,83 @@ func TestDataSource_withAuthorizationRequestHeader_200(t *testing.T) {
 	})
 }
 
+func TestDataSource_withSensitiveAuthorizationRequestHeader_200(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "Zm9vOmJhcg==" {
+			w.Header().Set("Content-Type", "text/plain")
+			_, err := w.Write([]byte("1.0.0"))
+			if err != nil {
+				t.Errorf("error writing body: %s", err)
+			}
+		} else {
+			w.WriteHeader(http.StatusForbidden)
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+
+								sensitive_request_headers = {
+									"Authorization" = "Zm9vOmJhcg=="
+								}
+							}`, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+					resource.TestCheckResourceAttr("data.http.http_test", "sensitive_request_headers.Authorization", "*****"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_withSensitiveAndNotSensitiveRequestHeaders_200(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "Zm9vOmJhcg==" {
+			w.Header().Set("Content-Type", "text/plain")
+			_, err := w.Write([]byte("1.0.0"))
+			if err != nil {
+				t.Errorf("error writing body: %s", err)
+			}
+		} else {
+			w.WriteHeader(http.StatusForbidden)
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+
+								request_headers = {
+									"foo" = "bar"
+								}
+
+								sensitive_request_headers = {
+									"Authorization" = "Zm9vOmJhcg=="
+								}
+							}`, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+					resource.TestCheckResourceAttr("data.http.http_test", "request_headers.foo", "bar"),
+					resource.TestCheckResourceAttr("data.http.http_test", "sensitive_request_headers.Authorization", "*****"),
+				),
+			},
+		},
+	})
+}
+
 func TestDataSource_withAuthorizationRequestHeader_403(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Zm9vOmJhcg==" {
