@@ -148,10 +148,6 @@ jobs:
       - uses: hashicorp/actions-go-build@v1
         env:
           CGO_ENABLED: 0
-          # TODO: technically we don't have all of these, but the first two seem useful
-          BASE_VERSION: ${{ needs.set-product-version.outputs.product-base-version }}
-          PRERELEASE_VERSION: ${{ needs.set-product-version.outputs.product-prerelease-version}}
-          # METADATA_VERSION: ${{ env.METADATA }}
         with:
           bin_name: "${{ env.PKG_NAME }}_v${{ needs.set-product-version.outputs.product-version }}_x5"
           product_name: ${{ env.PKG_NAME }}
