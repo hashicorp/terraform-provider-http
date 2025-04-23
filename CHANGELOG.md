@@ -1,3 +1,9 @@
+## 3.5.0 (April 23, 2025)
+
+FEATURES:
+
+* Add mTLS support (client cert & key) to http datasource ([#211](https://github.com/hashicorp/terraform-provider-http/issues/211))
+
 ## 3.4.5 (September 10, 2024)
 
 NOTES:
