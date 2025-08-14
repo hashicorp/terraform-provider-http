@@ -171,6 +171,11 @@ a 5xx-range (except 501) status code is received. For further details see
 				Description: `The HTTP response status code.`,
 				Computed:    true,
 			},
+
+			"follow_redirects": schema.BoolAttribute{
+				Description: "If false, do not follow HTTP redirects. Defaults to true.",
+				Optional:    true,
+			},
 		},
 
 		Blocks: map[string]schema.Block{
@@ -294,6 +299,13 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = clonedTr
+
+	// Configure no-follow behavior when follow_redirects is explicitly false
+	if !model.FollowRedirects.IsNull() && !model.FollowRedirects.ValueBool() {
+		retryClient.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
 
 	var timeout time.Duration
 
@@ -437,6 +449,7 @@ type modelV0 struct {
 	Body               types.String `tfsdk:"body"`
 	ResponseBodyBase64 types.String `tfsdk:"response_body_base64"`
 	StatusCode         types.Int64  `tfsdk:"status_code"`
+	FollowRedirects    types.Bool   `tfsdk:"follow_redirects"`
 }
 
 type retryModel struct {
