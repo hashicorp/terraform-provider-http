@@ -20,11 +20,10 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	rs "github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -48,30 +47,27 @@ func (r *httpResource) Metadata(_ context.Context, _ resource.MetadataRequest, r
 func (r *httpResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = rs.Schema{
 		Description: `
-The ` + "`http`" + ` resource makes an HTTP request to the given URL and exports
-information about the response.
+			The ` + "`http`" + ` resource makes an HTTP request to the given URL and exports
+			information about the response.
 
-The given URL may be either an ` + "`http`" + ` or ` + "`https`" + ` URL. This resource
-will issue a warning if the result is not UTF-8 encoded.
+			The given URL may be either an ` + "`http`" + ` or ` + "`https`" + ` URL. This resource
+			will issue a warning if the result is not UTF-8 encoded.
 
-~> **Important** Although ` + "`https`" + ` URLs can be used, there is currently no
-mechanism to authenticate the remote server except for general verification of
-the server certificate's chain of trust. Data retrieved from servers not under
-your control should be treated as untrustworthy.
+			~> **Important** Although ` + "`https`" + ` URLs can be used, there is currently no
+			mechanism to authenticate the remote server except for general verification of
+			the server certificate's chain of trust. Data retrieved from servers not under
+			your control should be treated as untrustworthy.
 
-By default, there are no retries. Configuring the retry block will result in
-retries if an error is returned by the client (e.g., connection errors) or if 
-a 5xx-range (except 501) status code is received. For further details see 
-[go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp).
-`,
+			By default, there are no retries. Configuring the retry block will result in
+			retries if an error is returned by the client (e.g., connection errors) or if 
+			a 5xx-range (except 501) status code is received. For further details see 
+			[go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp).
+			`,
 
 		Attributes: map[string]rs.Attribute{
 			"id": rs.StringAttribute{
 				Description: "The URL used for the request.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 
 			"url": rs.StringAttribute{
@@ -115,6 +111,13 @@ a 5xx-range (except 501) status code is received. For further details see
 			"response_body": rs.StringAttribute{
 				Description: "The response body returned as a string.",
 				Computed:    true,
+			},
+
+			"body": rs.StringAttribute{
+				Description: "The response body returned as a string. " +
+					"**NOTE**: This is deprecated, use `response_body` instead.",
+				Computed:           true,
+				DeprecationMessage: "Use response_body instead",
 			},
 
 			"response_body_base64": rs.StringAttribute{
@@ -225,9 +228,6 @@ func (r *httpResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.performRequest(ctx, &model, &resp.Diagnostics); err != nil {
-		return
-	}
 	diags = resp.State.Set(ctx, model)
 	resp.Diagnostics.Append(diags...)
 }
@@ -250,7 +250,7 @@ func (r *httpResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	// No remote deletion; removing from state is sufficient.
 }
 
-func (r *httpResource) performRequest(ctx context.Context, model *modelV0, diags *resource.Diagnostics) error {
+func (r *httpResource) performRequest(ctx context.Context, model *modelV0, diags *diag.Diagnostics) error {
 	requestURL := model.URL.ValueString()
 	method := model.Method.ValueString()
 	requestHeaders := model.RequestHeaders
@@ -443,10 +443,9 @@ func (r *httpResource) performRequest(ctx context.Context, model *modelV0, diags
 	model.ID = types.StringValue(requestURL)
 	model.ResponseHeaders = respHeadersState
 	model.ResponseBody = types.StringValue(responseBody)
+	model.Body = types.StringValue(responseBody)
 	model.ResponseBodyBase64 = types.StringValue(responseBodyBase64Std)
 	model.StatusCode = types.Int64Value(int64(response.StatusCode))
 
 	return nil
 }
-
-
