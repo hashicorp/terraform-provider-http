@@ -157,7 +157,6 @@ resource "null_resource" "example" {
 - `request_headers` (Map of String) A map of request header field names and values.
 - `request_timeout_ms` (Number) The request timeout in milliseconds.
 - `retry` (Block, Optional) Retry request configuration. By default there are no retries. Configuring this block will result in retries if an error is returned by the client (e.g., connection errors) or if a 5xx-range (except 501) status code is received. For further details see [go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp). (see [below for nested schema](#nestedblock--retry))
-- `when` (String) When to send the HTTP request. Valid values are `apply` (default) and `destroy`. When set to `apply`, the request is sent during resource creation and updates. When set to `destroy`, the request is only sent during resource destruction. This attribute is only applicable to the http resource, not the data source.
 
 ### Read-Only
 
