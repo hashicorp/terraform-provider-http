@@ -48,22 +48,22 @@ func (r *httpResource) Metadata(_ context.Context, _ resource.MetadataRequest, r
 func (r *httpResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = rs.Schema{
 		Description: `
-			The ` + "`http`" + ` resource makes an HTTP request to the given URL and exports
-			information about the response.
+The ` + "`http`" + ` resource makes an HTTP request to the given URL and exports
+information about the response.
 
-			The given URL may be either an ` + "`http`" + ` or ` + "`https`" + ` URL. This resource
-			will issue a warning if the result is not UTF-8 encoded.
+The given URL may be either an ` + "`http`" + ` or ` + "`https`" + ` URL. This resource
+will issue a warning if the result is not UTF-8 encoded.
 
-			~> **Important** Although ` + "`https`" + ` URLs can be used, there is currently no
-			mechanism to authenticate the remote server except for general verification of
-			the server certificate's chain of trust. Data retrieved from servers not under
-			your control should be treated as untrustworthy.
+~> **Important** Although ` + "`https`" + ` URLs can be used, there is currently no
+mechanism to authenticate the remote server except for general verification of
+the server certificate's chain of trust. Data retrieved from servers not under
+your control should be treated as untrustworthy.
 
-			By default, there are no retries. Configuring the retry block will result in
-			retries if an error is returned by the client (e.g., connection errors) or if 
-			a 5xx-range (except 501) status code is received. For further details see 
-			[go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp).
-			`,
+By default, there are no retries. Configuring the retry block will result in
+retries if an error is returned by the client (e.g., connection errors) or if 
+a 5xx-range (except 501) status code is received. For further details see 
+[go-retryablehttp](https://pkg.go.dev/github.com/hashicorp/go-retryablehttp).
+`,
 
 		Attributes: map[string]rs.Attribute{
 			"id": rs.StringAttribute{

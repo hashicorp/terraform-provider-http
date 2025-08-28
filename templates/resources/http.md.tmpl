@@ -11,7 +11,41 @@ description: |-
 
 ## Example Usage
 
-{{ tffile "examples/resources/http/basic.tf" }}
+{{ tffile "examples/resources/http/resource.tf" }}
+
+## Controlling when the request is sent
+
+Use the resource argument `when` to control whether the HTTP request is executed during apply operations or only during destroy:
+
+- `apply` (default): request is executed during create and update.
+- `destroy`: request is executed only during resource destruction.
+
+{{ tffile "examples/resources/http/when_attribute.tf" }}
+
+## Usage with Postcondition
+
+Note: Pre/postconditions validate values during apply. They are only meaningful when the resource executes the HTTP request during apply, i.e., when `when = "apply"` (default). If `when = "destroy"`, these conditions will not evaluate against a fresh request result.
+
+[Precondition and Postcondition](https://www.terraform.io/language/expressions/custom-conditions)
+checks are available with Terraform v1.2.0 and later.
+
+{{ tffile "examples/resources/http/postcondition.tf" }}
+
+## Usage with Precondition
+
+Note: Pre/postconditions validate values during apply. They are only meaningful when the resource executes the HTTP request during apply, i.e., when `when = "apply"` (default). If `when = "destroy"`, these conditions will not evaluate against a fresh request result.
+
+[Precondition and Postcondition](https://www.terraform.io/language/expressions/custom-conditions)
+checks are available with Terraform v1.2.0 and later.
+
+{{ tffile "examples/resources/http/precondition.tf" }}
+
+## Usage with Provisioner
+
+[Failure Behaviour](https://www.terraform.io/language/resources/provisioners/syntax#failure-behavior)
+can be leveraged within a provisioner in order to raise an error and stop applying.
+
+{{ tffile "examples/resources/http/provisioner.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}
 
