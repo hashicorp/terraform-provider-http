@@ -222,7 +222,7 @@ func (r *httpResource) Configure(ctx context.Context, req resource.ConfigureRequ
 }
 
 func (r *httpResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var model modelV0
+	var model modelV1
 	diags := req.Plan.Get(ctx, &model)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -258,7 +258,7 @@ func (r *httpResource) Create(ctx context.Context, req resource.CreateRequest, r
 }
 
 func (r *httpResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var model modelV0
+	var model modelV1
 	diags := req.State.Get(ctx, &model)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -292,7 +292,7 @@ func (r *httpResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 
 func (r *httpResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	// Preserve computed fields across updates; reflect config changes and optionally perform request
-	var plan, state modelV0
+	var plan, state modelV1
 	var diags diag.Diagnostics
 
 	// Read desired configuration from plan
@@ -336,7 +336,7 @@ func (r *httpResource) Update(ctx context.Context, req resource.UpdateRequest, r
 }
 
 func (r *httpResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var model modelV0
+	var model modelV1
 	diags := req.State.Get(ctx, &model)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -356,7 +356,7 @@ func (r *httpResource) Delete(ctx context.Context, req resource.DeleteRequest, r
 	}
 }
 
-func (r *httpResource) performRequest(ctx context.Context, model *modelV0, diags *diag.Diagnostics) error {
+func (r *httpResource) performRequest(ctx context.Context, model *modelV1, diags *diag.Diagnostics) error {
 	requestURL := model.URL.ValueString()
 	method := model.Method.ValueString()
 	requestHeaders := model.RequestHeaders
@@ -554,4 +554,24 @@ func (r *httpResource) performRequest(ctx context.Context, model *modelV0, diags
 	model.StatusCode = types.Int64Value(int64(response.StatusCode))
 
 	return nil
+}
+
+type modelV1 struct {
+	ID                 types.String `tfsdk:"id"`
+	URL                types.String `tfsdk:"url"`
+	Method             types.String `tfsdk:"method"`
+	RequestHeaders     types.Map    `tfsdk:"request_headers"`
+	RequestBody        types.String `tfsdk:"request_body"`
+	RequestTimeout     types.Int64  `tfsdk:"request_timeout_ms"`
+	Retry              types.Object `tfsdk:"retry"`
+	When               types.String `tfsdk:"when"`
+	ResponseHeaders    types.Map    `tfsdk:"response_headers"`
+	CaCertificate      types.String `tfsdk:"ca_cert_pem"`
+	ClientCert         types.String `tfsdk:"client_cert_pem"`
+	ClientKey          types.String `tfsdk:"client_key_pem"`
+	Insecure           types.Bool   `tfsdk:"insecure"`
+	ResponseBody       types.String `tfsdk:"response_body"`
+	Body               types.String `tfsdk:"body"`
+	ResponseBodyBase64 types.String `tfsdk:"response_body_base64"`
+	StatusCode         types.Int64  `tfsdk:"status_code"`
 }
