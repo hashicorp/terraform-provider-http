@@ -160,6 +160,20 @@ a 5xx-range (except 501) status code is received. For further details see
 				Optional:    true,
 			},
 
+			"when": schema.StringAttribute{
+				Description: "When to send the HTTP request. Valid values are `apply` (default) and `destroy`. " +
+					"When set to `apply`, the request is sent during resource creation and updates. " +
+					"When set to `destroy`, the request is only sent during resource destruction. " +
+					"This attribute is only applicable to the http resource, not the data source.",
+				Optional: true,
+				Validators: []validator.String{
+					stringvalidator.OneOf([]string{
+						"apply",
+						"destroy",
+					}...),
+				},
+			},
+
 			"response_headers": schema.MapAttribute{
 				Description: `A map of response header field names and values.` +
 					` Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
@@ -428,6 +442,7 @@ type modelV0 struct {
 	RequestBody        types.String `tfsdk:"request_body"`
 	RequestTimeout     types.Int64  `tfsdk:"request_timeout_ms"`
 	Retry              types.Object `tfsdk:"retry"`
+	When               types.String `tfsdk:"when"`
 	ResponseHeaders    types.Map    `tfsdk:"response_headers"`
 	CaCertificate      types.String `tfsdk:"ca_cert_pem"`
 	ClientCert         types.String `tfsdk:"client_cert_pem"`
