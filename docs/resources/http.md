@@ -23,6 +23,7 @@ The `http` resource makes an HTTP request to the given URL and exports informati
 ## Example Usage
 
 ```terraform
+# Basic usage - request sent during apply (default behavior)
 resource "http" "example" {
   url = "https://checkpoint-api.hashicorp.com/v1/check/terraform"
 
@@ -37,6 +38,15 @@ resource "http" "example" {
   # Optional request body (for POST)
   # method       = "POST"
   # request_body = "request body"
+}
+
+# Request sent only during resource destruction
+resource "http" "cleanup" {
+  url = "https://api.example.com/cleanup"
+  method = "DELETE"
+  
+  # Request is only sent when the resource is destroyed
+  when = "destroy"
 }
 ```
 
@@ -58,6 +68,7 @@ resource "http" "example" {
 - `request_headers` (Map of String) A map of request header field names and values.
 - `request_timeout_ms` (Number) The request timeout in milliseconds.
 - `retry` (Block, Optional) Retry request configuration. (attempts, min_delay_ms, max_delay_ms)
+- `when` (String) When to send the HTTP request. Valid values are `apply` (default) and `destroy`. When set to `apply`, the request is sent during resource creation and updates. When set to `destroy`, the request is only sent during resource destruction.
 
 ### Read-Only
 

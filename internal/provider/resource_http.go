@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -157,6 +158,19 @@ func (r *httpResource) Schema(ctx context.Context, req resource.SchemaRequest, r
 				Optional:    true,
 			},
 
+			"when": rs.StringAttribute{
+				Description: "When to send the HTTP request. Valid values are `apply` (default) and `destroy`. " +
+					"When set to `apply`, the request is sent during resource creation and updates. " +
+					"When set to `destroy`, the request is only sent during resource destruction.",
+				Optional: true,
+				Validators: []validator.String{
+					stringvalidator.OneOf([]string{
+						"apply",
+						"destroy",
+					}...),
+				},
+			},
+
 			"response_headers": rs.MapAttribute{
 				Description: `A map of response header field names and values.` +
 					` Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
@@ -214,9 +228,31 @@ func (r *httpResource) Create(ctx context.Context, req resource.CreateRequest, r
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.performRequest(ctx, &model, &resp.Diagnostics); err != nil {
-		return
+
+	// Only perform request if "when" is set to "apply" (default behavior when not specified)
+	whenValue := "apply"
+	if !model.When.IsNull() && !model.When.IsUnknown() {
+		whenValue = model.When.ValueString()
 	}
+
+	if whenValue == "apply" {
+		if err := r.performRequest(ctx, &model, &resp.Diagnostics); err != nil {
+			return
+		}
+	} else {
+		// Set default values for computed fields when not making request
+		model.ID = types.StringValue(model.URL.ValueString())
+
+		// Create an empty map for response headers
+		emptyHeaders := make(map[string]attr.Value)
+		model.ResponseHeaders = types.MapValueMust(types.StringType, emptyHeaders)
+
+		model.ResponseBody = types.StringValue("")
+		model.Body = types.StringValue("")
+		model.ResponseBodyBase64 = types.StringValue("")
+		model.StatusCode = types.Int64Value(0)
+	}
+
 	diags = resp.State.Set(ctx, model)
 	resp.Diagnostics.Append(diags...)
 }
@@ -228,26 +264,96 @@ func (r *httpResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	// No HTTP request is performed during read operations
+	// Ensure computed fields are properly set if they're null/unknown
+	if model.ID.IsNull() || model.ID.IsUnknown() {
+		model.ID = types.StringValue(model.URL.ValueString())
+	}
+	if model.ResponseHeaders.IsNull() || model.ResponseHeaders.IsUnknown() {
+		emptyHeaders := make(map[string]attr.Value)
+		model.ResponseHeaders = types.MapValueMust(types.StringType, emptyHeaders)
+	}
+	if model.ResponseBody.IsNull() || model.ResponseBody.IsUnknown() {
+		model.ResponseBody = types.StringValue("")
+	}
+	if model.Body.IsNull() || model.Body.IsUnknown() {
+		model.Body = types.StringValue("")
+	}
+	if model.ResponseBodyBase64.IsNull() || model.ResponseBodyBase64.IsUnknown() {
+		model.ResponseBodyBase64 = types.StringValue("")
+	}
+	if model.StatusCode.IsNull() || model.StatusCode.IsUnknown() {
+		model.StatusCode = types.Int64Value(0)
+	}
+
 	diags = resp.State.Set(ctx, model)
 	resp.Diagnostics.Append(diags...)
 }
 
 func (r *httpResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var model modelV0
-	diags := req.Plan.Get(ctx, &model)
-	resp.Diagnostics.Append(diags...)
+	// Preserve computed fields across updates; reflect config changes and optionally perform request
+	var plan, state modelV0
+	var diags diag.Diagnostics
+
+	// Read desired configuration from plan
+	d := req.Plan.Get(ctx, &plan)
+	resp.Diagnostics.Append(d...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	if err := r.performRequest(ctx, &model, &resp.Diagnostics); err != nil {
+
+	// Read prior state to retain computed fields when needed
+	d = req.State.Get(ctx, &state)
+	resp.Diagnostics.Append(d...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	whenValue := "apply"
+	if !plan.When.IsNull() && !plan.When.IsUnknown() {
+		whenValue = plan.When.ValueString()
+	}
+
+	// Begin with desired config (plan)
+	model := plan
+
+	if whenValue == "apply" {
+		if err := r.performRequest(ctx, &model, &resp.Diagnostics); err != nil {
+			return
+		}
+	} else {
+		// Keep previous computed fields when not issuing a request
+		model.ID = state.ID
+		model.ResponseHeaders = state.ResponseHeaders
+		model.ResponseBody = state.ResponseBody
+		model.Body = state.Body
+		model.ResponseBodyBase64 = state.ResponseBodyBase64
+		model.StatusCode = state.StatusCode
+	}
+
 	diags = resp.State.Set(ctx, model)
 	resp.Diagnostics.Append(diags...)
 }
 
 func (r *httpResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	// No remote deletion; removing from state is sufficient.
+	var model modelV0
+	diags := req.State.Get(ctx, &model)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Only perform request if "when" is set to "destroy"
+	whenValue := "apply"
+	if !model.When.IsNull() && !model.When.IsUnknown() {
+		whenValue = model.When.ValueString()
+	}
+
+	if whenValue == "destroy" {
+		if err := r.performRequest(ctx, &model, &resp.Diagnostics); err != nil {
+			return
+		}
+	}
 }
 
 func (r *httpResource) performRequest(ctx context.Context, model *modelV0, diags *diag.Diagnostics) error {
