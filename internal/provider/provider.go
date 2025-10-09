@@ -30,7 +30,9 @@ func (p *httpProvider) Configure(context.Context, provider.ConfigureRequest, *pr
 }
 
 func (p *httpProvider) Resources(context.Context) []func() resource.Resource {
-	return nil
+	return []func() resource.Resource{
+		NewHttpResource,
+	}
 }
 
 func (p *httpProvider) DataSources(context.Context) []func() datasource.DataSource {
