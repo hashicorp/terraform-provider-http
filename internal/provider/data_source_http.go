@@ -173,7 +173,7 @@ a 5xx-range (except 501) status code is received. For further details see
 			},
 
 			"follow_redirects": schema.BoolAttribute{
-				Description: "If false, do not follow HTTP redirects. Defaults to true.",
+				Description: "If `false`, do not follow HTTP redirects. Defaults to `true`.",
 				Optional:    true,
 			},
 		},
