@@ -2,8 +2,6 @@ module github.com/terraform-providers/terraform-provider-http
 
 go 1.24.0
 
-replace github.com/hashicorp/terraform-plugin-testing => /Users/austin.valle/code/terraform-plugin-testing
-
 require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
@@ -11,7 +9,7 @@ require (
 	github.com/hashicorp/terraform-plugin-framework-validators v0.19.0
 	github.com/hashicorp/terraform-plugin-go v0.30.0
 	github.com/hashicorp/terraform-plugin-log v0.10.0
-	github.com/hashicorp/terraform-plugin-testing v1.14.1-0.20260224163343-00a2cce7fdd8
+	github.com/hashicorp/terraform-plugin-testing v1.14.1-0.20260226193652-080e6be6718e
 	golang.org/x/net v0.50.0
 )
 
