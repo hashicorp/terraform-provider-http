@@ -9,13 +9,17 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/statestore"
 )
 
 func New() provider.Provider {
 	return &httpProvider{}
 }
 
-var _ provider.Provider = (*httpProvider)(nil)
+var (
+	_ provider.Provider               = (*httpProvider)(nil)
+	_ provider.ProviderWithStateStores = (*httpProvider)(nil)
+)
 
 type httpProvider struct{}
 
@@ -36,5 +40,11 @@ func (p *httpProvider) Resources(context.Context) []func() resource.Resource {
 func (p *httpProvider) DataSources(context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewHttpDataSource,
+	}
+}
+
+func (p *httpProvider) StateStores(context.Context) []func() statestore.StateStore {
+	return []func() statestore.StateStore{
+		NewHttpStateStore,
 	}
 }

@@ -1,0 +1,15 @@
+- Review/compare http state store implementation to TF core
+    - https://developer.hashicorp.com/terraform/language/backend/http
+    - I haven't stepped through the implementation yet, but the tests work
+- Compare acceptance tests to TF core backend tests
+    - See if there is anything I'm missing or if the test http server is different
+- Move validation implemented in initialize into schema validators?
+- When I finish, just open up a draft PR and mention that it's undecided whether the state store will land in this codebase or not
+    - Maybe follow-up with Sharanaa / Baraa if this is on the table?
+- After I'm confident in the implementation/automated tests, run a manual against something that already exists for http backend, it should work 1/1
+    - https://docs.gitlab.com/user/infrastructure/iac/terraform_state/
+    - https://github.com/Clivern/Lynx
+    - https://github.com/nimbolus/terraform-backend
+    - https://github.com/Ferlab-Ste-Justine/terraform-backend-etcd
+- What about migration tests? Do we care?
+    - Should I also run the tests against the http backend?
