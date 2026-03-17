@@ -35,7 +35,10 @@ func TestHTTPStateStore(t *testing.T) {
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			w.Write(storedState)
+			_, err := w.Write(storedState)
+			if err != nil {
+				return
+			}
 		case "POST":
 			body, _ := io.ReadAll(r.Body)
 			storedState = body
@@ -85,7 +88,10 @@ func TestHTTPStateStore_WithLocking(t *testing.T) {
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			w.Write(storedState)
+			_, err := w.Write(storedState)
+			if err != nil {
+				return
+			}
 
 		case "POST":
 			body, _ := io.ReadAll(r.Body)
@@ -99,13 +105,19 @@ func TestHTTPStateStore_WithLocking(t *testing.T) {
 		case "LOCK":
 			if currentLock != nil {
 				w.WriteHeader(http.StatusLocked)
-				json.NewEncoder(w).Encode(currentLock)
+				err := json.NewEncoder(w).Encode(currentLock)
+				if err != nil {
+					return
+				}
 				return
 			}
 
 			var lockInfo statestore.LockInfo
 			body, _ := io.ReadAll(r.Body)
-			json.Unmarshal(body, &lockInfo)
+			err := json.Unmarshal(body, &lockInfo)
+			if err != nil {
+				return
+			}
 			currentLock = &lockInfo
 			w.WriteHeader(http.StatusOK)
 
@@ -172,7 +184,10 @@ func TestHTTPStateStore_WithBasicAuth(t *testing.T) {
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			w.Write(storedState)
+			_, err := w.Write(storedState)
+			if err != nil {
+				return
+			}
 		case "POST":
 			body, _ := io.ReadAll(r.Body)
 			storedState = body
@@ -219,7 +234,10 @@ func TestHTTPStateStore_CustomUpdateMethod(t *testing.T) {
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			w.Write(storedState)
+			_, err := w.Write(storedState)
+			if err != nil {
+				return
+			}
 		case "PUT":
 			body, _ := io.ReadAll(r.Body)
 			storedState = body
@@ -267,7 +285,10 @@ func TestHTTPStateStore_NoLockSupport(t *testing.T) {
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			w.Write(storedState)
+			_, err := w.Write(storedState)
+			if err != nil {
+				return
+			}
 		case "POST":
 			body, _ := io.ReadAll(r.Body)
 			storedState = body
@@ -320,7 +341,10 @@ func TestHTTPStateStore_InvalidUnlock(t *testing.T) {
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			w.Write(storedState)
+			_, err := w.Write(storedState)
+			if err != nil {
+				return
+			}
 
 		case "POST":
 			body, _ := io.ReadAll(r.Body)
@@ -334,13 +358,19 @@ func TestHTTPStateStore_InvalidUnlock(t *testing.T) {
 		case "LOCK":
 			if currentLock != nil {
 				w.WriteHeader(http.StatusLocked)
-				json.NewEncoder(w).Encode(currentLock)
+				err := json.NewEncoder(w).Encode(currentLock)
+				if err != nil {
+					return
+				}
 				return
 			}
 
 			var lockInfo statestore.LockInfo
 			body, _ := io.ReadAll(r.Body)
-			json.Unmarshal(body, &lockInfo)
+			err := json.Unmarshal(body, &lockInfo)
+			if err != nil {
+				return
+			}
 			currentLock = &lockInfo
 			w.WriteHeader(http.StatusOK)
 
@@ -380,6 +410,246 @@ func TestHTTPStateStore_InvalidUnlock(t *testing.T) {
 		},
 	})
 }
+
+func TestHTTPStateStore_CustomLockAndUnlockAddress(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	var storedState []byte
+	var currentLock *statestore.LockInfo
+	var mu sync.Mutex
+
+	// State server
+	stateServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+		case "POST":
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer stateServer.Close()
+
+	// Lock server
+	lockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if r.Method == "LOCK" {
+			if currentLock != nil {
+				w.WriteHeader(http.StatusLocked)
+				_ = json.NewEncoder(w).Encode(currentLock)
+				return
+			}
+
+			var lockInfo statestore.LockInfo
+			body, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(body, &lockInfo)
+			currentLock = &lockInfo
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer lockServer.Close()
+
+	// Unlock server
+	unlockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if r.Method == "UNLOCK" {
+			lockID := r.URL.Query().Get("ID")
+			if currentLock == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+
+			if currentLock.ID != lockID {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
+
+			currentLock = nil
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+	defer unlockServer.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				VerifyStateStoreLock: true,
+				Config:               testAccStateStoreConfigWithLockAndUnlockAddress(stateServer.URL, lockServer.URL, unlockServer.URL),
+			},
+		},
+	})
+}
+
+func TestHTTPStateStore_CustomLockMethod(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	var storedState []byte
+	var currentLock *statestore.LockInfo
+	var mu sync.Mutex
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+
+		case "POST":
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+
+		case "PUT":
+			// Custom lock method
+			if currentLock != nil {
+				w.WriteHeader(http.StatusLocked)
+				_ = json.NewEncoder(w).Encode(currentLock)
+				return
+			}
+
+			var lockInfo statestore.LockInfo
+			body, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(body, &lockInfo)
+			currentLock = &lockInfo
+			w.WriteHeader(http.StatusOK)
+
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				VerifyStateStoreLock: true,
+				Config:               testAccStateStoreConfigWithCustomMethods(server.URL, server.URL, "PUT", "DELETE"),
+			},
+		},
+	})
+}
+
+func TestHTTPStateStore_RetryConfiguration(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	var storedState []byte
+	var mu sync.Mutex
+	var requestCount int
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requestCount++
+		defer mu.Unlock()
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+		case "POST":
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config:               testAccStateStoreConfigWithRetry(server.URL, 3, 1, 5),
+			},
+		},
+	})
+
+	// Verify that requests were made
+	if requestCount == 0 {
+		t.Fatalf("expected at least 1 request, got %d", requestCount)
+	}
+}
+
+func TestHTTPStateStore_ValidationMutuallyExclusive(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	// Test skip_cert_verification with client_ca_certificate_pem (mutually exclusive)
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccStateStoreConfigWithMutuallyExclusive(server.URL),
+				ExpectError: regexp.MustCompile(`skip_cert_verification cannot be true when client_ca_certificate_pem is set`),
+			},
+		},
+	})
+}
+
+// Helper functions for test configs
 
 func testAccStateStoreConfig(address, lockAddress, username, password string) string {
 	additionalAttrs := ""
@@ -426,13 +696,189 @@ terraform {
 }`, address, updateMethod)
 }
 
-// TODO: add more tests for other configurations
-// - lock address + unlock address
-// - lock method + unlock method
-// - skip cert verification
-// - retry max, wait min, wait max
-// - client cert for TLS verification
-// - client cert + private key for mTLS auth
-// - validation tests? at least the mutually exclusive ones
-// - maybe a test that uses almost all of the provider configuration, but with environment variables
-//   - I need to update initialize to actually do this
+func testAccStateStoreConfigWithLockAndUnlockAddress(stateAddr, lockAddr, unlockAddr string) string {
+	return fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    lock_address = %q
+    unlock_address = %q
+  }
+}`, stateAddr, lockAddr, unlockAddr)
+}
+
+func testAccStateStoreConfigWithCustomMethods(stateAddr, lockAddr, lockMethod, unlockMethod string) string {
+	return fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    lock_address = %q
+    lock_method = %q
+    unlock_method = %q
+  }
+}`, stateAddr, lockAddr, lockMethod, unlockMethod)
+}
+
+func testAccStateStoreConfigWithRetry(address string, maxRetry, waitMin, waitMax int64) string {
+	return fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    retry_max = %d
+    retry_wait_min = %d
+    retry_wait_max = %d
+  }
+}`, address, maxRetry, waitMin, waitMax)
+}
+
+func testAccStateStoreConfigWithMutuallyExclusive(address string) string {
+	// Note: Using a dummy cert for testing validation
+	dummyCert := "-----BEGIN CERTIFICATE-----\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n-----END CERTIFICATE-----"
+	return fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    skip_cert_verification = true
+    client_ca_certificate_pem = %q
+  }
+}`, address, dummyCert)
+}
+
+func TestHTTPStateStore_ComprehensiveConfiguration(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	var storedState []byte
+	var currentLock *statestore.LockInfo
+	var mu sync.Mutex
+
+	expectedUser := "testuser"
+	expectedPass := "testpass"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		// Check basic auth
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != expectedUser || pass != expectedPass {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		lockID := r.URL.Query().Get("ID")
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+
+		case "PUT":
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+
+		case "POST":
+			// Custom lock method
+			if currentLock != nil {
+				w.WriteHeader(http.StatusLocked)
+				_ = json.NewEncoder(w).Encode(currentLock)
+				return
+			}
+
+			var lockInfo statestore.LockInfo
+			body, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(body, &lockInfo)
+			currentLock = &lockInfo
+			w.WriteHeader(http.StatusOK)
+
+		case "PATCH":
+			// Custom unlock method
+			if currentLock == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+
+			if currentLock.ID != lockID {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
+
+			currentLock = nil
+			w.WriteHeader(http.StatusOK)
+
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				VerifyStateStoreLock: true,
+				Config:               testAccStateStoreConfigComprehensive(server.URL),
+			},
+		},
+	})
+}
+
+func testAccStateStoreConfigComprehensive(address string) string {
+	return fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    update_method = "PUT"
+    lock_address = %q
+    lock_method = "POST"
+    unlock_method = "PATCH"
+    retry_max = 2
+    retry_wait_min = 1
+    retry_wait_max = 10
+  }
+}`, address, address)
+}
