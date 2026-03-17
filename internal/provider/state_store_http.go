@@ -32,12 +32,25 @@ var (
 
 const defaultWorkspaceName = "default"
 
-type httpStateStore struct {
-	client *httpStateStoreClient
+type httpLockInfo struct {
+	ID        string
+	Operation string
+	Who       string
+	Created   time.Time
+	Version   string
+	Path      string
+	Info      string
 }
 
-func NewHttpStateStore() statestore.StateStore {
-	return &httpStateStore{}
+type httpStateStore struct {
+	client           *httpStateStoreClient
+	terraformVersion string
+}
+
+func NewHttpStateStore(terraformVersion string) statestore.StateStore {
+	return &httpStateStore{
+		terraformVersion: terraformVersion,
+	}
 }
 
 func (s *httpStateStore) Metadata(ctx context.Context, req statestore.MetadataRequest, resp *statestore.MetadataResponse) {
@@ -381,6 +394,13 @@ func (s *httpStateStore) Read(ctx context.Context, req statestore.ReadRequest, r
 		return
 	}
 
+	// 204 means no content exists yet - this is OK
+	if httpResp.StatusCode == http.StatusNoContent {
+		tflog.Debug(ctx, "No content exists (204)")
+		resp.StateBytes = nil
+		return
+	}
+
 	// Any other status code is an error
 	resp.Diagnostics.AddError(
 		"Unexpected HTTP status code",
@@ -511,7 +531,17 @@ func (s *httpStateStore) Lock(ctx context.Context, req statestore.LockRequest, r
 	})
 
 	// Create lock info
-	lockInfo := statestore.NewLockInfo(req)
+	// lockInfo := statestore.NewLockInfo(req)
+	newLockInfo := statestore.NewLockInfo(req)
+	lockInfo := httpLockInfo{
+		ID:        newLockInfo.ID,
+		Operation: newLockInfo.Operation,
+		Who:       newLockInfo.Who,
+		Created:   newLockInfo.Created,
+		Version:   s.terraformVersion,
+		Path:      "", // leave blank as required but not available
+		Info:      "", // leave blank as required but not available
+	}
 
 	// Marshal lock info to JSON
 	lockData, err := json.Marshal(lockInfo)
