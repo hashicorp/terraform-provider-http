@@ -140,7 +140,7 @@ func (s *httpStateStore) Schema(ctx context.Context, req statestore.SchemaReques
 	}
 }
 
-// configModel represents the configuration for the HTTP state store
+// configModel represents the configuration for the HTTP state store.
 type configModel struct {
 	Address              types.String `tfsdk:"address"`
 	UpdateMethod         types.String `tfsdk:"update_method"`
@@ -159,7 +159,7 @@ type configModel struct {
 	ClientPrivateKeyPEM  types.String `tfsdk:"client_private_key_pem"`
 }
 
-// httpStateStoreClient represents the configured HTTP client for state operations
+// httpStateStoreClient represents the configured HTTP client for state operations.
 type httpStateStoreClient struct {
 	address       string
 	updateMethod  string
