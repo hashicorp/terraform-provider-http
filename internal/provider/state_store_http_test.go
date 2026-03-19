@@ -4,15 +4,20 @@
 package provider
 
 import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"regexp"
 	"sync"
 	"testing"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/hashicorp/terraform-plugin-framework/statestore"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/tfversion"
@@ -218,6 +223,185 @@ func TestHTTPStateStore_WithBasicAuth(t *testing.T) {
 	})
 }
 
+func TestHTTPStateStore_WithEnvironmentConfiguration(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	var storedState []byte
+	var currentLock *statestore.LockInfo
+	var mu sync.Mutex
+
+	expectedUser := "envuser"
+	expectedPass := "envpass"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != expectedUser || pass != expectedPass {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+		case "PUT":
+			if currentLock != nil && r.URL.Query().Get("ID") != currentLock.ID {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+		case "POST":
+			if currentLock != nil {
+				w.WriteHeader(http.StatusLocked)
+				_ = json.NewEncoder(w).Encode(currentLock)
+				return
+			}
+
+			var lockInfo statestore.LockInfo
+			body, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(body, &lockInfo)
+			currentLock = &lockInfo
+			w.WriteHeader(http.StatusOK)
+		case "PATCH":
+			lockID := lockIDFromRequest(r)
+			if currentLock == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			if currentLock.ID != lockID {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
+			currentLock = nil
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	t.Setenv("TF_HTTP_ADDRESS", server.URL)
+	t.Setenv("TF_HTTP_UPDATE_METHOD", "PUT")
+	t.Setenv("TF_HTTP_LOCK_ADDRESS", server.URL)
+	t.Setenv("TF_HTTP_UNLOCK_ADDRESS", server.URL)
+	t.Setenv("TF_HTTP_LOCK_METHOD", "POST")
+	t.Setenv("TF_HTTP_UNLOCK_METHOD", "PATCH")
+	t.Setenv("TF_HTTP_USERNAME", expectedUser)
+	t.Setenv("TF_HTTP_PASSWORD", expectedPass)
+	t.Setenv("TF_HTTP_RETRY_MAX", "2")
+	t.Setenv("TF_HTTP_RETRY_WAIT_MIN", "0")
+	t.Setenv("TF_HTTP_RETRY_WAIT_MAX", "0")
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				VerifyStateStoreLock: true,
+				Config: `
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+  }
+}`,
+			},
+		},
+	})
+}
+
+func TestHTTPStateStore_ConfigOverridesEnvironment(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+	t.Setenv("TF_HTTP_UPDATE_METHOD", "PUT")
+
+	var storedState []byte
+	var mu sync.Mutex
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+		case "POST":
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config:               testAccStateStoreConfigWithUpdateMethod(server.URL, "POST"),
+			},
+		},
+	})
+}
+
+func TestHTTPStateStore_InvalidRetryEnvironment(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+	t.Setenv("TF_HTTP_RETRY_MAX", "invalid")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config:               testAccStateStoreConfig(server.URL, "", "", ""),
+				ExpectError:          regexp.MustCompile(`invalid retry_max`),
+			},
+		},
+	})
+}
+
 func TestHTTPStateStore_CustomUpdateMethod(t *testing.T) {
 	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
 
@@ -314,6 +498,319 @@ func TestHTTPStateStore_WriteNoContent(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestHTTPStateStore_SkipCertVerification(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	certPath, keyPath := generateCert(t)
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		t.Fatalf("failed to load generated server cert/key: %v", err)
+	}
+
+	var storedState []byte
+	var mu sync.Mutex
+
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+		case "POST":
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	server.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
+	server.StartTLS()
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config: fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    skip_cert_verification = true
+  }
+}`,
+					server.URL,
+				),
+			},
+		},
+	})
+}
+
+func TestHTTPStateStore_NoSkipCertVerificationFails(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	certPath, keyPath := generateCert(t)
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		t.Fatalf("failed to load generated server cert/key: %v", err)
+	}
+	var storedState []byte
+	var mu sync.Mutex
+
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+		case "POST":
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	server.TLS = &tls.Config{Certificates: []tls.Certificate{cert}}
+	server.StartTLS()
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config: fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+  }
+}`,
+					server.URL,
+				),
+				ExpectError: regexp.MustCompile(`(?i)x509:.*(unknown authority|certificate)`),
+			},
+		},
+	})
+}
+
+func TestHTTPStateStore_ClientCertificateAuth(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	certPath, keyPath := generateCert(t)
+
+	caData, err := os.ReadFile(certPath)
+	if err != nil {
+		t.Fatalf("failed to read generated CA cert: %v", err)
+	}
+
+	clientCertData, err := os.ReadFile(certPath)
+	if err != nil {
+		t.Fatalf("failed to read generated client cert: %v", err)
+	}
+
+	clientKeyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		t.Fatalf("failed to read generated client key: %v", err)
+	}
+
+	serverCert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		t.Fatalf("failed to load generated server cert/key: %v", err)
+	}
+
+	clientCAPool := x509.NewCertPool()
+	if ok := clientCAPool.AppendCertsFromPEM(caData); !ok {
+		t.Fatal("failed to append CA cert to client CA pool")
+	}
+
+	var storedState []byte
+	var mu sync.Mutex
+
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+		case "POST":
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	server.TLS = &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    clientCAPool,
+	}
+	server.StartTLS()
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config: fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    client_ca_certificate_pem = %q
+    client_certificate_pem = %q
+    client_private_key_pem = %q
+  }
+}`,
+					server.URL,
+					string(caData),
+					string(clientCertData),
+					string(clientKeyData),
+				),
+			},
+		},
+	})
+}
+
+func TestHTTPStateStore_NoClientCertificateFails(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	certPath, keyPath := generateCert(t)
+
+	caData, err := os.ReadFile(certPath)
+	if err != nil {
+		t.Fatalf("failed to read generated CA cert: %v", err)
+	}
+
+	serverCert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		t.Fatalf("failed to load generated server cert/key: %v", err)
+	}
+
+	clientCAPool := x509.NewCertPool()
+	if ok := clientCAPool.AppendCertsFromPEM(caData); !ok {
+		t.Fatal("failed to append CA cert to client CA pool")
+	}
+
+	var requestCount int
+	var mu sync.Mutex
+
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		requestCount++
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.TLS = &tls.Config{
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    clientCAPool,
+	}
+	server.StartTLS()
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config: fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    skip_cert_verification = true
+  }
+}`,
+					server.URL,
+				),
+				ExpectError: regexp.MustCompile(`(?i)(tls: certificate required|certificate required|handshake failure)`),
+			},
+		},
+	})
+
+	if requestCount != 0 {
+		t.Fatalf("expected TLS handshake to fail before any handler invocation, got %d requests", requestCount)
+	}
 }
 
 func TestHTTPStateStore_NoLockSupport(t *testing.T) {
@@ -756,10 +1253,149 @@ func TestHTTPStateStore_RetryConfiguration(t *testing.T) {
 	var storedState []byte
 	var mu sync.Mutex
 	var requestCount int
+	var postAttempts int
+	var failedPostAttempts int
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		requestCount++
+		defer mu.Unlock()
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+		case "POST":
+			postAttempts++
+			if postAttempts < 3 {
+				failedPostAttempts++
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte("temporary error"))
+				return
+			}
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config:               testAccStateStoreConfigWithRetry(server.URL, 2, 0, 0),
+			},
+		},
+	})
+
+	// Verify that retryable writes were attempted and eventually succeeded.
+	if requestCount == 0 {
+		t.Fatalf("expected at least 1 request, got %d", requestCount)
+	}
+
+	if failedPostAttempts != 2 {
+		t.Fatalf("expected exactly 2 transient POST failures to trigger retries, got %d", failedPostAttempts)
+	}
+
+	if postAttempts < 3 {
+		t.Fatalf("expected at least 3 POST attempts (initial + retries), got %d", postAttempts)
+	}
+
+	if storedState == nil {
+		t.Fatal("expected state to be stored after retries succeeded")
+	}
+}
+
+func TestHTTPStateStore_WebDAVPutCreatedThenNoContent(t *testing.T) {
+	var storedState []byte
+	var mu sync.Mutex
+	var putAttempts int
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		switch r.Method {
+		case "PUT":
+			body, _ := io.ReadAll(r.Body)
+			putAttempts++
+			if string(storedState) == string(body) {
+				storedState = body
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			storedState = body
+			w.WriteHeader(http.StatusCreated)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	store := &httpStateStore{
+		client: &httpStateStoreClient{
+			address:      server.URL,
+			updateMethod: "PUT",
+			client:       retryablehttp.NewClient(),
+		},
+	}
+
+	ctx := context.Background()
+	stateBytes := []byte(`{"version":4}`)
+
+	firstResp := statestore.WriteResponse{}
+	store.Write(ctx, statestore.WriteRequest{StateID: defaultWorkspaceName, StateBytes: stateBytes}, &firstResp)
+	if firstResp.Diagnostics.HasError() {
+		t.Fatalf("expected first PUT write to succeed with 201, got diagnostics: %v", firstResp.Diagnostics)
+	}
+
+	secondResp := statestore.WriteResponse{}
+	store.Write(ctx, statestore.WriteRequest{StateID: defaultWorkspaceName, StateBytes: stateBytes}, &secondResp)
+	if secondResp.Diagnostics.HasError() {
+		t.Fatalf("expected second PUT write to succeed with 204, got diagnostics: %v", secondResp.Diagnostics)
+	}
+
+	if putAttempts != 2 {
+		t.Fatalf("expected exactly 2 PUT attempts, got %d", putAttempts)
+	}
+
+	if string(storedState) != string(stateBytes) {
+		t.Fatalf("expected stored state %q, got %q", string(stateBytes), string(storedState))
+	}
+}
+
+func TestHTTPStateStore_SkipCertVerificationWithCACertificate(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	certPath, _ := generateCert(t)
+
+	caData, err := os.ReadFile(certPath)
+	if err != nil {
+		t.Fatalf("failed to read generated CA cert: %v", err)
+	}
+
+	var storedState []byte
+	var mu sync.Mutex
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
 		defer mu.Unlock()
 
 		switch r.Method {
@@ -783,6 +1419,7 @@ func TestHTTPStateStore_RetryConfiguration(t *testing.T) {
 	}))
 	defer server.Close()
 
+	// Terraform Core backend allows skip_cert_verification alongside client_ca_certificate_pem.
 	resource.UnitTest(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_15_0),
@@ -793,18 +1430,29 @@ func TestHTTPStateStore_RetryConfiguration(t *testing.T) {
 			{
 				StateStore:           true,
 				DefaultWorkspaceOnly: true,
-				Config:               testAccStateStoreConfigWithRetry(server.URL, 3, 1, 5),
+				Config: fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    skip_cert_verification = true
+    client_ca_certificate_pem = %q
+  }
+}`,
+					server.URL,
+					string(caData),
+				),
 			},
 		},
 	})
-
-	// Verify that requests were made
-	if requestCount == 0 {
-		t.Fatalf("expected at least 1 request, got %d", requestCount)
-	}
 }
 
-func TestHTTPStateStore_ValidationMutuallyExclusive(t *testing.T) {
+func TestHTTPStateStore_ClientCertificateWithoutKeyFails(t *testing.T) {
 	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -812,7 +1460,6 @@ func TestHTTPStateStore_ValidationMutuallyExclusive(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Test skip_cert_verification with client_ca_certificate_pem (mutually exclusive)
 	resource.UnitTest(t, resource.TestCase{
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
 			tfversion.SkipBelow(tfversion.Version1_15_0),
@@ -823,8 +1470,61 @@ func TestHTTPStateStore_ValidationMutuallyExclusive(t *testing.T) {
 			{
 				StateStore:           true,
 				DefaultWorkspaceOnly: true,
-				Config:               testAccStateStoreConfigWithMutuallyExclusive(server.URL),
-				ExpectError:          regexp.MustCompile(`skip_cert_verification cannot be true when client_ca_certificate_pem is set`),
+				Config: fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    client_certificate_pem = "dummy"
+  }
+}`,
+					server.URL,
+				),
+				ExpectError: regexp.MustCompile(`client_certificate_pem is set but client_private_key_pem is not`),
+			},
+		},
+	})
+}
+
+func TestHTTPStateStore_ClientKeyWithoutCertificateFails(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config: fmt.Sprintf(`
+terraform {
+  required_providers {
+    http = {
+      source = "registry.terraform.io/hashicorp/http"
+    }
+  }
+  state_store "http" {
+    provider "http" {}
+    address = %q
+    client_private_key_pem = "dummy"
+  }
+}`,
+					server.URL,
+				),
+				ExpectError: regexp.MustCompile(`client_private_key_pem is set but client_certificate_pem is not`),
 			},
 		},
 	})
@@ -928,25 +1628,6 @@ terraform {
     retry_wait_max = %d
   }
 }`, address, maxRetry, waitMin, waitMax)
-}
-
-func testAccStateStoreConfigWithMutuallyExclusive(address string) string {
-	// Note: Using a dummy cert for testing validation
-	dummyCert := "-----BEGIN CERTIFICATE-----\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n-----END CERTIFICATE-----"
-	return fmt.Sprintf(`
-terraform {
-  required_providers {
-    http = {
-      source = "registry.terraform.io/hashicorp/http"
-    }
-  }
-  state_store "http" {
-    provider "http" {}
-    address = %q
-    skip_cert_verification = true
-    client_ca_certificate_pem = %q
-  }
-}`, address, dummyCert)
 }
 
 func TestHTTPStateStore_ComprehensiveConfiguration(t *testing.T) {

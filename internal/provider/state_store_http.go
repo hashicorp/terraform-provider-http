@@ -13,6 +13,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -34,6 +36,23 @@ var (
 )
 
 const defaultWorkspaceName = "default"
+
+const (
+	envHTTPAddress             = "TF_HTTP_ADDRESS"
+	envHTTPUpdateMethod        = "TF_HTTP_UPDATE_METHOD"
+	envHTTPLockAddress         = "TF_HTTP_LOCK_ADDRESS"
+	envHTTPUnlockAddress       = "TF_HTTP_UNLOCK_ADDRESS"
+	envHTTPLockMethod          = "TF_HTTP_LOCK_METHOD"
+	envHTTPUnlockMethod        = "TF_HTTP_UNLOCK_METHOD"
+	envHTTPUsername            = "TF_HTTP_USERNAME"
+	envHTTPPassword            = "TF_HTTP_PASSWORD"
+	envHTTPRetryMax            = "TF_HTTP_RETRY_MAX"
+	envHTTPRetryWaitMin        = "TF_HTTP_RETRY_WAIT_MIN"
+	envHTTPRetryWaitMax        = "TF_HTTP_RETRY_WAIT_MAX"
+	envHTTPClientCACertificate = "TF_HTTP_CLIENT_CA_CERTIFICATE_PEM"
+	envHTTPClientCertificate   = "TF_HTTP_CLIENT_CERTIFICATE_PEM"
+	envHTTPClientPrivateKeyPEM = "TF_HTTP_CLIENT_PRIVATE_KEY_PEM"
+)
 
 type httpLockInfo struct {
 	ID        string
@@ -65,8 +84,8 @@ func (s *httpStateStore) Schema(ctx context.Context, req statestore.SchemaReques
 		Description: "HTTP state store for managing Terraform state via HTTP endpoints",
 		Attributes: map[string]schema.Attribute{
 			"address": schema.StringAttribute{
-				Description: "The address of the HTTP endpoint for state storage",
-				Required:    true,
+				Description: "The address of the HTTP endpoint for state storage. May also be set via TF_HTTP_ADDRESS.",
+				Optional:    true,
 			},
 			"update_method": schema.StringAttribute{
 				Description: "HTTP method to use when updating state. Defaults to POST",
@@ -182,26 +201,79 @@ func (s *httpStateStore) Initialize(ctx context.Context, req statestore.Initiali
 		return
 	}
 
-	// Validate mutual TLS configuration
-	hasClientCert := !config.ClientCertPEM.IsNull() && !config.ClientCertPEM.IsUnknown()
-	hasClientKey := !config.ClientPrivateKeyPEM.IsNull() && !config.ClientPrivateKeyPEM.IsUnknown()
-
-	if hasClientCert != hasClientKey {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("client_certificate_pem"),
-			"Invalid mTLS Configuration",
-			"Both client_certificate_pem and client_private_key_pem must be set together for mTLS authentication",
+	address := stringValueOrEnv(config.Address, envHTTPAddress, "")
+	if address == "" {
+		resp.Diagnostics.AddError(
+			"Missing required configuration",
+			fmt.Sprintf("address argument is required or must be set via %s", envHTTPAddress),
 		)
 		return
 	}
 
-	// Validate skip_cert_verification conflicts
-	if !config.SkipCertVerification.IsNull() && config.SkipCertVerification.ValueBool() &&
-		!config.ClientCACertPEM.IsNull() && !config.ClientCACertPEM.IsUnknown() {
-		resp.Diagnostics.AddAttributeError(
-			path.Root("skip_cert_verification"),
-			"Conflicting Configuration",
-			"skip_cert_verification cannot be true when client_ca_certificate_pem is set",
+	if err := validateHTTPURL(address, "address"); err != nil {
+		resp.Diagnostics.AddError("Invalid configuration", err.Error())
+		return
+	}
+
+	updateMethod := stringValueOrEnv(config.UpdateMethod, envHTTPUpdateMethod, "POST")
+	lockAddress := stringValueOrEnv(config.LockAddress, envHTTPLockAddress, "")
+	if lockAddress != "" {
+		if err := validateHTTPURL(lockAddress, "lock_address"); err != nil {
+			resp.Diagnostics.AddError("Invalid configuration", err.Error())
+			return
+		}
+	}
+
+	lockMethod := stringValueOrEnv(config.LockMethod, envHTTPLockMethod, "LOCK")
+	unlockAddress := stringValueOrEnv(config.UnlockAddress, envHTTPUnlockAddress, lockAddress)
+	if unlockAddress != "" {
+		if err := validateHTTPURL(unlockAddress, "unlock_address"); err != nil {
+			resp.Diagnostics.AddError("Invalid configuration", err.Error())
+			return
+		}
+	}
+
+	unlockMethod := stringValueOrEnv(config.UnlockMethod, envHTTPUnlockMethod, "UNLOCK")
+	username := stringValueOrEnv(config.Username, envHTTPUsername, "")
+	password := stringValueOrEnv(config.Password, envHTTPPassword, "")
+	clientCACertPEM := stringValueOrEnv(config.ClientCACertPEM, envHTTPClientCACertificate, "")
+	clientCertPEM := stringValueOrEnv(config.ClientCertPEM, envHTTPClientCertificate, "")
+	clientPrivateKeyPEM := stringValueOrEnv(config.ClientPrivateKeyPEM, envHTTPClientPrivateKeyPEM, "")
+
+	retryMax, err := int64ValueOrEnv(config.RetryMax, envHTTPRetryMax, 2)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid configuration", fmt.Sprintf("invalid retry_max: %s", err))
+		return
+	}
+
+	retryWaitMin, err := int64ValueOrEnv(config.RetryWaitMin, envHTTPRetryWaitMin, 1)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid configuration", fmt.Sprintf("invalid retry_wait_min: %s", err))
+		return
+	}
+
+	retryWaitMax, err := int64ValueOrEnv(config.RetryWaitMax, envHTTPRetryWaitMax, 30)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid configuration", fmt.Sprintf("invalid retry_wait_max: %s", err))
+		return
+	}
+
+	// Validate mutual TLS configuration
+	hasClientCert := clientCertPEM != ""
+	hasClientKey := clientPrivateKeyPEM != ""
+
+	if hasClientCert && !hasClientKey {
+		resp.Diagnostics.AddError(
+			"Invalid mTLS Configuration",
+			"client_certificate_pem is set but client_private_key_pem is not",
+		)
+		return
+	}
+
+	if hasClientKey && !hasClientCert {
+		resp.Diagnostics.AddError(
+			"Invalid mTLS Configuration",
+			"client_private_key_pem is set but client_certificate_pem is not",
 		)
 		return
 	}
@@ -234,9 +306,9 @@ func (s *httpStateStore) Initialize(ctx context.Context, req statestore.Initiali
 	}
 
 	// Configure CA certificate
-	if !config.ClientCACertPEM.IsNull() && !config.ClientCACertPEM.IsUnknown() {
+	if clientCACertPEM != "" {
 		caCertPool := x509.NewCertPool()
-		if ok := caCertPool.AppendCertsFromPEM([]byte(config.ClientCACertPEM.ValueString())); !ok {
+		if ok := caCertPool.AppendCertsFromPEM([]byte(clientCACertPEM)); !ok {
 			resp.Diagnostics.AddAttributeError(
 				path.Root("client_ca_certificate_pem"),
 				"Error configuring TLS client",
@@ -250,8 +322,8 @@ func (s *httpStateStore) Initialize(ctx context.Context, req statestore.Initiali
 	// Configure client certificate for mTLS
 	if hasClientCert && hasClientKey {
 		cert, err := tls.X509KeyPair(
-			[]byte(config.ClientCertPEM.ValueString()),
-			[]byte(config.ClientPrivateKeyPEM.ValueString()),
+			[]byte(clientCertPEM),
+			[]byte(clientPrivateKeyPEM),
 		)
 		if err != nil {
 			resp.Diagnostics.AddError(
@@ -269,59 +341,68 @@ func (s *httpStateStore) Initialize(ctx context.Context, req statestore.Initiali
 	retryClient.Logger = levelledLogger{ctx}
 
 	// Configure retry parameters
-	retryMax := int64(2) // default
-	if !config.RetryMax.IsNull() && !config.RetryMax.IsUnknown() {
-		retryMax = config.RetryMax.ValueInt64()
-	}
 	retryClient.RetryMax = int(retryMax)
 
-	retryWaitMin := int64(1) // default (seconds)
-	if !config.RetryWaitMin.IsNull() && !config.RetryWaitMin.IsUnknown() {
-		retryWaitMin = config.RetryWaitMin.ValueInt64()
-	}
 	retryClient.RetryWaitMin = time.Duration(retryWaitMin) * time.Second
 
-	retryWaitMax := int64(30) // default (seconds)
-	if !config.RetryWaitMax.IsNull() && !config.RetryWaitMax.IsUnknown() {
-		retryWaitMax = config.RetryWaitMax.ValueInt64()
-	}
 	retryClient.RetryWaitMax = time.Duration(retryWaitMax) * time.Second
-
-	// Set defaults for optional fields
-	updateMethod := "POST"
-	if !config.UpdateMethod.IsNull() && !config.UpdateMethod.IsUnknown() {
-		updateMethod = config.UpdateMethod.ValueString()
-	}
-
-	lockMethod := "LOCK"
-	if !config.LockMethod.IsNull() && !config.LockMethod.IsUnknown() {
-		lockMethod = config.LockMethod.ValueString()
-	}
-
-	unlockMethod := "UNLOCK"
-	if !config.UnlockMethod.IsNull() && !config.UnlockMethod.IsUnknown() {
-		unlockMethod = config.UnlockMethod.ValueString()
-	}
-
-	unlockAddress := config.LockAddress.ValueString()
-	if !config.UnlockAddress.IsNull() && !config.UnlockAddress.IsUnknown() {
-		unlockAddress = config.UnlockAddress.ValueString()
-	}
 
 	// Create and store client
 	client := &httpStateStoreClient{
-		address:       config.Address.ValueString(),
+		address:       address,
 		updateMethod:  updateMethod,
-		lockAddress:   config.LockAddress.ValueString(),
+		lockAddress:   lockAddress,
 		unlockAddress: unlockAddress,
 		lockMethod:    lockMethod,
 		unlockMethod:  unlockMethod,
-		username:      config.Username.ValueString(),
-		password:      config.Password.ValueString(),
+		username:      username,
+		password:      password,
 		client:        retryClient,
 	}
 
 	resp.StateStoreData = client
+}
+
+func stringValueOrEnv(value types.String, envName, defaultValue string) string {
+	if !value.IsNull() && !value.IsUnknown() {
+		return value.ValueString()
+	}
+
+	if envValue, ok := os.LookupEnv(envName); ok {
+		return envValue
+	}
+
+	return defaultValue
+}
+
+func int64ValueOrEnv(value types.Int64, envName string, defaultValue int64) (int64, error) {
+	if !value.IsNull() && !value.IsUnknown() {
+		return value.ValueInt64(), nil
+	}
+
+	if envValue, ok := os.LookupEnv(envName); ok {
+		parsed, err := strconv.ParseInt(envValue, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+
+		return parsed, nil
+	}
+
+	return defaultValue, nil
+}
+
+func validateHTTPURL(rawURL, fieldName string) error {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("failed to parse %s URL: %s", fieldName, err)
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("%s must be HTTP or HTTPS", fieldName)
+	}
+
+	return nil
 }
 
 func (s *httpStateStore) Configure(ctx context.Context, req statestore.ConfigureRequest, resp *statestore.ConfigureResponse) {
