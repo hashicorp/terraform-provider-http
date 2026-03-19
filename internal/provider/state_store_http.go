@@ -170,6 +170,8 @@ type httpStateStoreClient struct {
 	username      string
 	password      string
 	client        *retryablehttp.Client
+	lockID        string
+	lockData      []byte
 }
 
 func (s *httpStateStore) Initialize(ctx context.Context, req statestore.InitializeRequest, resp *statestore.InitializeResponse) {
@@ -423,11 +425,24 @@ func (s *httpStateStore) Write(ctx context.Context, req statestore.WriteRequest,
 		"stateID": req.StateID,
 	})
 
-	httpReq, err := retryablehttp.NewRequestWithContext(ctx, s.client.updateMethod, s.client.address, bytes.NewReader(req.StateBytes))
+	writeURL := s.client.address
+	var err error
+	if s.client.lockID != "" {
+		writeURL, err = withQueryParam(s.client.address, "ID", s.client.lockID)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error creating write URL",
+				fmt.Sprintf("Error adding lock ID query parameter to %s: %s", s.client.address, err),
+			)
+			return
+		}
+	}
+
+	httpReq, err := retryablehttp.NewRequestWithContext(ctx, s.client.updateMethod, writeURL, bytes.NewReader(req.StateBytes))
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating HTTP request",
-			fmt.Sprintf("Error creating %s request to %s: %s", s.client.updateMethod, s.client.address, err),
+			fmt.Sprintf("Error creating %s request to %s: %s", s.client.updateMethod, writeURL, err),
 		)
 		return
 	}
@@ -449,8 +464,8 @@ func (s *httpStateStore) Write(ctx context.Context, req statestore.WriteRequest,
 	}
 	defer httpResp.Body.Close()
 
-	// 200 OK or 201 Created are success
-	if httpResp.StatusCode == http.StatusOK || httpResp.StatusCode == http.StatusCreated {
+	// 200 OK, 201 Created, or 204 No Content are success.
+	if httpResp.StatusCode == http.StatusOK || httpResp.StatusCode == http.StatusCreated || httpResp.StatusCode == http.StatusNoContent {
 		tflog.Debug(ctx, "State written successfully", map[string]interface{}{"status": httpResp.StatusCode})
 		return
 	}
@@ -459,7 +474,7 @@ func (s *httpStateStore) Write(ctx context.Context, req statestore.WriteRequest,
 	body, _ := io.ReadAll(httpResp.Body)
 	resp.Diagnostics.AddError(
 		"Unexpected HTTP status code",
-		fmt.Sprintf("Expected status 200 or 201, got %d from %s: %s", httpResp.StatusCode, s.client.address, string(body)),
+		fmt.Sprintf("Expected status 200, 201, or 204, got %d from %s: %s", httpResp.StatusCode, writeURL, string(body)),
 	)
 }
 
@@ -556,14 +571,11 @@ func (s *httpStateStore) Lock(ctx context.Context, req statestore.LockRequest, r
 		return
 	}
 
-	// Build URL with lock ID as query parameter
-	lockURL := fmt.Sprintf("%s?ID=%s", s.client.lockAddress, url.QueryEscape(lockInfo.ID))
-
-	httpReq, err := retryablehttp.NewRequestWithContext(ctx, s.client.lockMethod, lockURL, bytes.NewReader(lockData))
+	httpReq, err := retryablehttp.NewRequestWithContext(ctx, s.client.lockMethod, s.client.lockAddress, bytes.NewReader(lockData))
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating HTTP request",
-			fmt.Sprintf("Error creating %s request to %s: %s", s.client.lockMethod, lockURL, err),
+			fmt.Sprintf("Error creating %s request to %s: %s", s.client.lockMethod, s.client.lockAddress, err),
 		)
 		return
 	}
@@ -579,7 +591,7 @@ func (s *httpStateStore) Lock(ctx context.Context, req statestore.LockRequest, r
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error locking state",
-			fmt.Sprintf("Error making %s request to %s: %s", s.client.lockMethod, lockURL, err),
+			fmt.Sprintf("Error making %s request to %s: %s", s.client.lockMethod, s.client.lockAddress, err),
 		)
 		return
 	}
@@ -588,6 +600,8 @@ func (s *httpStateStore) Lock(ctx context.Context, req statestore.LockRequest, r
 	// 200 OK means lock acquired
 	if httpResp.StatusCode == http.StatusOK {
 		tflog.Debug(ctx, "State locked successfully", map[string]interface{}{"lockID": lockInfo.ID})
+		s.client.lockID = lockInfo.ID
+		s.client.lockData = lockData
 		resp.LockID = lockInfo.ID
 		return
 	}
@@ -615,7 +629,7 @@ func (s *httpStateStore) Lock(ctx context.Context, req statestore.LockRequest, r
 	body, _ := io.ReadAll(httpResp.Body)
 	resp.Diagnostics.AddError(
 		"Unexpected HTTP status code",
-		fmt.Sprintf("Expected status 200, 423, or 409, got %d from %s: %s", httpResp.StatusCode, lockURL, string(body)),
+		fmt.Sprintf("Expected status 200, 423, or 409, got %d from %s: %s", httpResp.StatusCode, s.client.lockAddress, string(body)),
 	)
 }
 
@@ -638,17 +652,32 @@ func (s *httpStateStore) Unlock(ctx context.Context, req statestore.UnlockReques
 		"lockID":  req.LockID,
 	})
 
-	// Build URL with lock ID as query parameter
-	unlockURL := fmt.Sprintf("%s?ID=%s", s.client.unlockAddress, url.QueryEscape(req.LockID))
+	unlockData := s.client.lockData
+	if req.LockID != "" && (s.client.lockID == "" || s.client.lockID != req.LockID || len(unlockData) == 0) {
+		fallbackUnlockInfo := httpLockInfo{
+			ID: req.LockID,
+		}
+		marshaledUnlockData, err := json.Marshal(fallbackUnlockInfo)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error marshaling unlock info",
+				fmt.Sprintf("Error marshaling unlock info to JSON: %s", err),
+			)
+			return
+		}
+		unlockData = marshaledUnlockData
+	}
 
-	httpReq, err := retryablehttp.NewRequestWithContext(ctx, s.client.unlockMethod, unlockURL, nil)
+	httpReq, err := retryablehttp.NewRequestWithContext(ctx, s.client.unlockMethod, s.client.unlockAddress, bytes.NewReader(unlockData))
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating HTTP request",
-			fmt.Sprintf("Error creating %s request to %s: %s", s.client.unlockMethod, unlockURL, err),
+			fmt.Sprintf("Error creating %s request to %s: %s", s.client.unlockMethod, s.client.unlockAddress, err),
 		)
 		return
 	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
 
 	// Set basic auth if configured
 	if s.client.username != "" && s.client.password != "" {
@@ -659,7 +688,7 @@ func (s *httpStateStore) Unlock(ctx context.Context, req statestore.UnlockReques
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error unlocking state",
-			fmt.Sprintf("Error making %s request to %s: %s", s.client.unlockMethod, unlockURL, err),
+			fmt.Sprintf("Error making %s request to %s: %s", s.client.unlockMethod, s.client.unlockAddress, err),
 		)
 		return
 	}
@@ -668,6 +697,8 @@ func (s *httpStateStore) Unlock(ctx context.Context, req statestore.UnlockReques
 	// 200 OK means unlock successful
 	if httpResp.StatusCode == http.StatusOK {
 		tflog.Debug(ctx, "State unlocked successfully")
+		s.client.lockID = ""
+		s.client.lockData = nil
 		return
 	}
 
@@ -675,7 +706,7 @@ func (s *httpStateStore) Unlock(ctx context.Context, req statestore.UnlockReques
 	body, _ := io.ReadAll(httpResp.Body)
 	resp.Diagnostics.AddError(
 		"Unexpected HTTP status code",
-		fmt.Sprintf("Expected status 200, got %d from %s: %s", httpResp.StatusCode, unlockURL, string(body)),
+		fmt.Sprintf("Expected status 200, got %d from %s: %s", httpResp.StatusCode, s.client.unlockAddress, string(body)),
 	)
 }
 
@@ -683,3 +714,16 @@ var multipleWorkspacesNotSupportedDiag = diag.NewErrorDiagnostic(
 	"Multiple workspaces not supported",
 	"The http state store does not support multiple workspaces, use the \"default\" workspace",
 )
+
+func withQueryParam(baseAddress, key, value string) (string, error) {
+	u, err := url.Parse(baseAddress)
+	if err != nil {
+		return "", err
+	}
+
+	query := u.Query()
+	query.Set(key, value)
+	u.RawQuery = query.Encode()
+
+	return u.String(), nil
+}

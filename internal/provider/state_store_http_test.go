@@ -79,8 +79,6 @@ func TestHTTPStateStore_WithLocking(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 
-		lockID := r.URL.Query().Get("ID")
-
 		switch r.Method {
 		case "GET":
 			if storedState == nil {
@@ -94,6 +92,10 @@ func TestHTTPStateStore_WithLocking(t *testing.T) {
 			}
 
 		case "POST":
+			if currentLock != nil && r.URL.Query().Get("ID") != currentLock.ID {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
 			body, _ := io.ReadAll(r.Body)
 			storedState = body
 			w.WriteHeader(http.StatusOK)
@@ -122,16 +124,15 @@ func TestHTTPStateStore_WithLocking(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 
 		case "UNLOCK":
+			lockID := lockIDFromRequest(r)
 			if currentLock == nil {
 				w.WriteHeader(http.StatusNotFound)
 				return
 			}
-
 			if currentLock.ID != lockID {
 				w.WriteHeader(http.StatusConflict)
 				return
 			}
-
 			currentLock = nil
 			w.WriteHeader(http.StatusOK)
 
@@ -268,6 +269,53 @@ func TestHTTPStateStore_CustomUpdateMethod(t *testing.T) {
 	})
 }
 
+func TestHTTPStateStore_WriteNoContent(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	var storedState []byte
+	var mu sync.Mutex
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+		case "POST":
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusNoContent)
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer server.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config:               testAccStateStoreConfig(server.URL, "", "", ""),
+			},
+		},
+	})
+}
+
 func TestHTTPStateStore_NoLockSupport(t *testing.T) {
 	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
 
@@ -332,8 +380,6 @@ func TestHTTPStateStore_InvalidUnlock(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 
-		lockID := r.URL.Query().Get("ID")
-
 		switch r.Method {
 		case "GET":
 			if storedState == nil {
@@ -375,16 +421,15 @@ func TestHTTPStateStore_InvalidUnlock(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 
 		case "UNLOCK":
+			lockID := lockIDFromRequest(r)
 			if currentLock == nil {
 				w.WriteHeader(http.StatusNotFound)
 				return
 			}
-
 			if currentLock.ID != lockID {
 				w.WriteHeader(http.StatusConflict)
 				return
 			}
-
 			// This simulates a broken unlock implementation, since it doesn't clear currentLock
 			w.WriteHeader(http.StatusOK)
 		default:
@@ -471,20 +516,21 @@ func TestHTTPStateStore_CustomLockAndUnlockAddress(t *testing.T) {
 		defer mu.Unlock()
 
 		if r.Method == "UNLOCK" {
-			lockID := r.URL.Query().Get("ID")
+			lockID := lockIDFromRequest(r)
 			if currentLock == nil {
 				w.WriteHeader(http.StatusNotFound)
 				return
 			}
-
 			if currentLock.ID != lockID {
 				w.WriteHeader(http.StatusConflict)
 				return
 			}
-
 			currentLock = nil
 			w.WriteHeader(http.StatusOK)
+			return
 		}
+
+		w.WriteHeader(http.StatusMethodNotAllowed)
 	}))
 	defer unlockServer.Close()
 
@@ -500,6 +546,126 @@ func TestHTTPStateStore_CustomLockAndUnlockAddress(t *testing.T) {
 				DefaultWorkspaceOnly: true,
 				VerifyStateStoreLock: true,
 				Config:               testAccStateStoreConfigWithLockAndUnlockAddress(stateServer.URL, lockServer.URL, unlockServer.URL),
+			},
+		},
+	})
+}
+
+func TestHTTPStateStore_LockUnlockAddressWithExistingQueryParams(t *testing.T) {
+	t.Setenv("TF_ENABLE_PLUGGABLE_STATE_STORAGE", "1")
+
+	var storedState []byte
+	var currentLock *statestore.LockInfo
+	var mu sync.Mutex
+
+	const token = "abc123"
+
+	stateServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		switch r.Method {
+		case "GET":
+			if storedState == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(storedState)
+		case "POST":
+			body, _ := io.ReadAll(r.Body)
+			storedState = body
+			w.WriteHeader(http.StatusOK)
+		case "DELETE":
+			storedState = nil
+			w.WriteHeader(http.StatusOK)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	defer stateServer.Close()
+
+	lockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if r.URL.Query().Get("token") != token {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if r.Method != "LOCK" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		if currentLock != nil {
+			w.WriteHeader(http.StatusLocked)
+			_ = json.NewEncoder(w).Encode(currentLock)
+			return
+		}
+
+		var lockInfo statestore.LockInfo
+		body, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(body, &lockInfo)
+		if lockInfo.ID == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if r.URL.Query().Get("ID") != "" {
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		currentLock = &lockInfo
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer lockServer.Close()
+
+	unlockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if r.URL.Query().Get("token") != token {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if r.Method != "UNLOCK" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		lockID := lockIDFromRequest(r)
+		if currentLock == nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if currentLock.ID != lockID {
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+		currentLock = nil
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer unlockServer.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
+			tfversion.SkipBelow(tfversion.Version1_15_0),
+			tfversion.SkipIfNotPrerelease(),
+		},
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				VerifyStateStoreLock: true,
+				Config: testAccStateStoreConfigWithLockAndUnlockAddress(
+					stateServer.URL,
+					lockServer.URL+"?token="+token,
+					unlockServer.URL+"?token="+token,
+				),
 			},
 		},
 	})
@@ -548,6 +714,19 @@ func TestHTTPStateStore_CustomLockMethod(t *testing.T) {
 			currentLock = &lockInfo
 			w.WriteHeader(http.StatusOK)
 
+		case "UNLOCK":
+			lockID := lockIDFromRequest(r)
+			if currentLock == nil {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			if currentLock.ID != lockID {
+				w.WriteHeader(http.StatusConflict)
+				return
+			}
+			currentLock = nil
+			w.WriteHeader(http.StatusOK)
+
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
@@ -565,7 +744,7 @@ func TestHTTPStateStore_CustomLockMethod(t *testing.T) {
 				StateStore:           true,
 				DefaultWorkspaceOnly: true,
 				VerifyStateStoreLock: true,
-				Config:               testAccStateStoreConfigWithCustomMethods(server.URL, server.URL, "PUT", "DELETE"),
+				Config:               testAccStateStoreConfigWithCustomMethods(server.URL, server.URL, "PUT", "UNLOCK"),
 			},
 		},
 	})
@@ -642,8 +821,10 @@ func TestHTTPStateStore_ValidationMutuallyExclusive(t *testing.T) {
 		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
-				Config:      testAccStateStoreConfigWithMutuallyExclusive(server.URL),
-				ExpectError: regexp.MustCompile(`skip_cert_verification cannot be true when client_ca_certificate_pem is set`),
+				StateStore:           true,
+				DefaultWorkspaceOnly: true,
+				Config:               testAccStateStoreConfigWithMutuallyExclusive(server.URL),
+				ExpectError:          regexp.MustCompile(`skip_cert_verification cannot be true when client_ca_certificate_pem is set`),
 			},
 		},
 	})
@@ -789,8 +970,6 @@ func TestHTTPStateStore_ComprehensiveConfiguration(t *testing.T) {
 			return
 		}
 
-		lockID := r.URL.Query().Get("ID")
-
 		switch r.Method {
 		case "GET":
 			if storedState == nil {
@@ -824,17 +1003,15 @@ func TestHTTPStateStore_ComprehensiveConfiguration(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 
 		case "PATCH":
-			// Custom unlock method
+			lockID := lockIDFromRequest(r)
 			if currentLock == nil {
 				w.WriteHeader(http.StatusNotFound)
 				return
 			}
-
 			if currentLock.ID != lockID {
 				w.WriteHeader(http.StatusConflict)
 				return
 			}
-
 			currentLock = nil
 			w.WriteHeader(http.StatusOK)
 
@@ -855,13 +1032,13 @@ func TestHTTPStateStore_ComprehensiveConfiguration(t *testing.T) {
 				StateStore:           true,
 				DefaultWorkspaceOnly: true,
 				VerifyStateStoreLock: true,
-				Config:               testAccStateStoreConfigComprehensive(server.URL),
+				Config:               testAccStateStoreConfigComprehensive(server.URL, expectedUser, expectedPass),
 			},
 		},
 	})
 }
 
-func testAccStateStoreConfigComprehensive(address string) string {
+func testAccStateStoreConfigComprehensive(address, username, password string) string {
 	return fmt.Sprintf(`
 terraform {
   required_providers {
@@ -876,9 +1053,29 @@ terraform {
     lock_address = %q
     lock_method = "POST"
     unlock_method = "PATCH"
+	username = %q
+	password = %q
     retry_max = 2
     retry_wait_min = 1
     retry_wait_max = 10
   }
-}`, address, address)
+}`, address, address, username, password)
+}
+
+func lockIDFromRequest(r *http.Request) string {
+	if lockID := r.URL.Query().Get("ID"); lockID != "" {
+		return lockID
+	}
+
+	body, _ := io.ReadAll(r.Body)
+	if len(body) == 0 {
+		return ""
+	}
+
+	var lockInfo statestore.LockInfo
+	if err := json.Unmarshal(body, &lockInfo); err != nil {
+		return ""
+	}
+
+	return lockInfo.ID
 }
