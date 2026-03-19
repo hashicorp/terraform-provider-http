@@ -342,7 +342,7 @@ func (s *httpStateStore) Configure(ctx context.Context, req statestore.Configure
 }
 
 func (s *httpStateStore) GetStates(ctx context.Context, req statestore.GetStatesRequest, resp *statestore.GetStatesResponse) {
-	// TODO: HTTP backend today doesn't support listing states from the server, so I think we'll likely always have to indicate the default workspace exists
+	// Terraform Core's HTTP backend does not support workspace enumeration and only operates on the default workspace.
 	resp.StateIDs = []string{defaultWorkspaceName}
 }
 
