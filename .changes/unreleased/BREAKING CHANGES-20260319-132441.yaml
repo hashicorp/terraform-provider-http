@@ -1,0 +1,5 @@
+kind: BREAKING CHANGES
+body: 'ProtocolV6: only Terraform 1.0+ is supported for this version of the provider. Earlier versions of Terraform will need to pin the provider version to 3.5.0'
+time: 2026-03-19T13:24:41.398465-04:00
+custom:
+    Issue: "602"

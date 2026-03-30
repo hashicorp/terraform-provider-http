@@ -9,15 +9,21 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/statestore"
 )
 
 func New() provider.Provider {
 	return &httpProvider{}
 }
 
-var _ provider.Provider = (*httpProvider)(nil)
+var (
+	_ provider.Provider                = (*httpProvider)(nil)
+	_ provider.ProviderWithStateStores = (*httpProvider)(nil)
+)
 
-type httpProvider struct{}
+type httpProvider struct {
+	terraformVersion string
+}
 
 func (p *httpProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "http"
@@ -26,7 +32,8 @@ func (p *httpProvider) Metadata(_ context.Context, _ provider.MetadataRequest, r
 func (p *httpProvider) Schema(context.Context, provider.SchemaRequest, *provider.SchemaResponse) {
 }
 
-func (p *httpProvider) Configure(context.Context, provider.ConfigureRequest, *provider.ConfigureResponse) {
+func (p *httpProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	p.terraformVersion = req.TerraformVersion
 }
 
 func (p *httpProvider) Resources(context.Context) []func() resource.Resource {
@@ -36,5 +43,11 @@ func (p *httpProvider) Resources(context.Context) []func() resource.Resource {
 func (p *httpProvider) DataSources(context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewHttpDataSource,
+	}
+}
+
+func (p *httpProvider) StateStores(context.Context) []func() statestore.StateStore {
+	return []func() statestore.StateStore{
+		func() statestore.StateStore { return NewHttpStateStore(p.terraformVersion) },
 	}
 }

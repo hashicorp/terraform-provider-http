@@ -64,7 +64,7 @@ jobs:
           - macos-latest
           - windows-latest
           - ubuntu-latest
-        terraform: ${{ fromJSON(vars.TF_VERSIONS_PROTOCOL_V5) }}
+        terraform: ${{ fromJSON(vars.TF_VERSIONS_PROTOCOL_V6) }}
     steps:
 
       - name: Check out code

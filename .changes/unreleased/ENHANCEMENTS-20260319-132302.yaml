@@ -1,0 +1,5 @@
+kind: ENHANCEMENTS
+body: 'statestore: New State Store created for HTTP replacing the Terraform HTTP Backend'
+time: 2026-03-19T13:23:02.04345-04:00
+custom:
+    Issue: "602"
