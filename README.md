@@ -1,8 +1,10 @@
 # Terraform Provider: HTTP
 
 The HTTP provider interacts with generic HTTP servers. 
-It provides a data source that issues an HTTP request exposing the response headers and body
-for use within a Terraform deployment.
+It provides:
+
+- a data source (`http`) that issues an HTTP request exposing the response headers and body.
+- a resource (`http`) that performs an HTTP request during apply and stores response data in state.
 
 ## Documentation, questions and discussions
 
