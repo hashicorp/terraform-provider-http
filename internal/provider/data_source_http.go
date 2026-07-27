@@ -388,10 +388,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	if !utf8.Valid(bytes) {
-		resp.Diagnostics.AddWarning(
-			"Response body is not recognized as UTF-8",
-			"Terraform may not properly handle the response_body if the contents are binary.",
-		)
+		tflog.Debug(ctx, "Response body is not recognized as UTF-8. Use response_body_base64 for binary data.")
 	}
 
 	responseBody := string(bytes)

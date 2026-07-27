@@ -986,6 +986,30 @@ func TestDataSource_ResponseBodyText(t *testing.T) {
 	})
 }
 
+func TestDataSource_BinaryContentNoWarning(t *testing.T) {
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write([]byte{0x00, 0x01, 0x02, 0xFF})
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer svr.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+							}`, svr.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
 func TestDataSource_ResponseBodyBinary(t *testing.T) {
 	// 1 x 1 transparent gif pixel.
 	const transPixel = "\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\x00\x00\x00\x21\xF9\x04\x01\x00\x00\x00\x00\x2C\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3B"
