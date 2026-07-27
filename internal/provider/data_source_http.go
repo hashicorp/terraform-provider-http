@@ -350,6 +350,11 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		}
 	}
 
+	tflog.Debug(ctx, "Making HTTP request", map[string]interface{}{
+		"method": request.Method,
+		"url":    request.URL.String(),
+	})
+
 	response, err := retryClient.Do(request)
 	if err != nil {
 		target := &url.Error{}
@@ -377,6 +382,10 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	defer response.Body.Close()
+
+	tflog.Debug(ctx, "Received HTTP response", map[string]interface{}{
+		"status_code": response.StatusCode,
+	})
 
 	bytes, err := io.ReadAll(response.Body)
 	if err != nil {
