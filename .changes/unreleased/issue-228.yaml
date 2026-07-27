@@ -1,0 +1,4 @@
+kind: ENHANCEMENTS
+body: 'data-source/http: Adds `protocol_version` attribute to select IPv4 or IPv6'
+custom:
+  Issue: 228
