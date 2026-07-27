@@ -1,0 +1,4 @@
+kind: BUG FIXES
+body: 'data-source/http: Fix `request_timeout_ms` being ignored by applying timeout to request context'
+custom:
+  Issue: 402
