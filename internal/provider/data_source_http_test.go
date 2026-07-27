@@ -1020,6 +1020,47 @@ func TestDataSource_ResponseBodyBinary(t *testing.T) {
 	})
 }
 
+func TestDataSource_RetryOn4xx(t *testing.T) {
+	var requestCount int
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		w.Header().Set("Content-Type", "text/plain")
+		if requestCount < 2 {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("retried"))
+		}
+	}))
+	defer svr.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					data "http" "test" {
+						url = "%s"
+						retry {
+							attempts = 1
+							max_http_status = 499
+						}
+					}`, svr.URL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.test", "status_code", "200"),
+					resource.TestCheckResourceAttr("data.http.test", "response_body", "retried"),
+					func(_ *terraform.State) error {
+						if requestCount < 2 {
+							return fmt.Errorf("expected at least 2 requests (retry on 404), got %d", requestCount)
+						}
+						return nil
+					},
+				),
+			},
+		},
+	})
+}
+
 func checkServerAndProxyRequestCount(proxyRequestCount, serverRequestCount *int) resource.TestCheckFunc {
 	return func(_ *terraform.State) error {
 		if *proxyRequestCount != *serverRequestCount {
