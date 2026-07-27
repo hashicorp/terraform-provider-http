@@ -111,6 +111,19 @@ a 5xx-range (except 501) status code is received. For further details see
 				},
 			},
 
+			"response_is_sensitive": schema.BoolAttribute{
+				Description: "Mark the response data as sensitive. When true, the response body is also " +
+					"available in `sensitive_response_body` which is marked as sensitive in the Terraform state.",
+				Optional: true,
+			},
+
+			"sensitive_response_body": schema.StringAttribute{
+				Description: "The response body returned as a sensitive string. " +
+					"Populated when `response_is_sensitive` is set to `true`.",
+				Computed:  true,
+				Sensitive: true,
+			},
+
 			"response_body": schema.StringAttribute{
 				Description: "The response body returned as a string.",
 				Computed:    true,
@@ -416,27 +429,33 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	model.ResponseBodyBase64 = types.StringValue(responseBodyBase64Std)
 	model.StatusCode = types.Int64Value(int64(response.StatusCode))
 
+	if !model.ResponseIsSensitive.IsNull() && model.ResponseIsSensitive.ValueBool() {
+		model.SensitiveResponseBody = types.StringValue(responseBody)
+	}
+
 	diags = resp.State.Set(ctx, model)
 	resp.Diagnostics.Append(diags...)
 }
 
 type modelV0 struct {
-	ID                 types.String `tfsdk:"id"`
-	URL                types.String `tfsdk:"url"`
-	Method             types.String `tfsdk:"method"`
-	RequestHeaders     types.Map    `tfsdk:"request_headers"`
-	RequestBody        types.String `tfsdk:"request_body"`
-	RequestTimeout     types.Int64  `tfsdk:"request_timeout_ms"`
-	Retry              types.Object `tfsdk:"retry"`
-	ResponseHeaders    types.Map    `tfsdk:"response_headers"`
-	CaCertificate      types.String `tfsdk:"ca_cert_pem"`
-	ClientCert         types.String `tfsdk:"client_cert_pem"`
-	ClientKey          types.String `tfsdk:"client_key_pem"`
-	Insecure           types.Bool   `tfsdk:"insecure"`
-	ResponseBody       types.String `tfsdk:"response_body"`
-	Body               types.String `tfsdk:"body"`
-	ResponseBodyBase64 types.String `tfsdk:"response_body_base64"`
-	StatusCode         types.Int64  `tfsdk:"status_code"`
+	ID                    types.String `tfsdk:"id"`
+	URL                   types.String `tfsdk:"url"`
+	Method                types.String `tfsdk:"method"`
+	RequestHeaders        types.Map    `tfsdk:"request_headers"`
+	RequestBody           types.String `tfsdk:"request_body"`
+	RequestTimeout        types.Int64  `tfsdk:"request_timeout_ms"`
+	Retry                 types.Object `tfsdk:"retry"`
+	ResponseHeaders       types.Map    `tfsdk:"response_headers"`
+	CaCertificate         types.String `tfsdk:"ca_cert_pem"`
+	ClientCert            types.String `tfsdk:"client_cert_pem"`
+	ClientKey             types.String `tfsdk:"client_key_pem"`
+	Insecure              types.Bool   `tfsdk:"insecure"`
+	ResponseIsSensitive   types.Bool   `tfsdk:"response_is_sensitive"`
+	SensitiveResponseBody types.String `tfsdk:"sensitive_response_body"`
+	ResponseBody          types.String `tfsdk:"response_body"`
+	Body                  types.String `tfsdk:"body"`
+	ResponseBodyBase64    types.String `tfsdk:"response_body_base64"`
+	StatusCode            types.Int64  `tfsdk:"status_code"`
 }
 
 type retryModel struct {
