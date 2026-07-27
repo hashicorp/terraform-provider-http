@@ -6,6 +6,7 @@ package provider
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -695,6 +696,107 @@ func TestDataSource_HostRequestHeaderOverride_200(t *testing.T) {
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Single", "foobar"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Double", "1, 2"),
 				),
+			},
+		},
+	})
+}
+
+func TestDataSource_WithBasicAuth_200(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		expected := "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:secret"))
+		if auth == expected {
+			w.Header().Set("Content-Type", "text/plain")
+			_, err := w.Write([]byte("authenticated"))
+			if err != nil {
+				t.Errorf("error writing body: %s", err)
+			}
+		} else {
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url      = "%s"
+								username = "admin"
+								password = "secret"
+							}`, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "authenticated"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_WithBasicAuth_401(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url      = "%s"
+								username = "admin"
+								password = "wrong"
+							}`, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "401"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_WithBasicAuth_UsernameOnly(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url      = "%s"
+								username = "admin"
+							}`, testServer.URL),
+				ExpectError: regexp.MustCompile("Attribute \"password\" must be specified when \"username\" is specified"),
+			},
+		},
+	})
+}
+
+func TestDataSource_WithBasicAuth_PasswordOnly(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url      = "%s"
+								password = "secret"
+							}`, testServer.URL),
+				ExpectError: regexp.MustCompile("Attribute \"username\" must be specified when \"password\" is specified"),
 			},
 		},
 	})
