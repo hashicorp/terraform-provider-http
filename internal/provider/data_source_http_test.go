@@ -38,7 +38,7 @@ func TestDataSource_200(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -71,7 +71,7 @@ func TestDataSource_200_SlashInPath(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -98,7 +98,7 @@ func TestDataSource_404(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -129,7 +129,7 @@ func TestDataSource_withAuthorizationRequestHeader_200(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -159,7 +159,7 @@ func TestDataSource_withAuthorizationRequestHeader_403(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -190,7 +190,7 @@ func TestDataSource_utf8_200(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -218,7 +218,7 @@ func TestDataSource_utf16_200(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -245,9 +245,9 @@ func TestDataSource_x509cert(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
-			//test fails in TF 0.14.x due to https://github.com/hashicorp/terraform-provider-http/issues/58
+			// test fails in TF 0.14.x due to https://github.com/hashicorp/terraform-provider-http/issues/58
 			tfversion.SkipBetween(tfversion.Version0_14_0, tfversion.Version0_15_0),
 		},
 		Steps: []resource.TestStep{
@@ -299,7 +299,7 @@ func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
 				),
 			},
 			{
-				ProtoV5ProviderFactories: protoV5ProviderFactories(),
+				ProtoV6ProviderFactories: protoV6ProviderFactories(),
 				Config: fmt.Sprintf(`
 							data "http" "http_test" {
 								url = "%s"
@@ -307,7 +307,7 @@ func TestDataSource_UpgradeFromVersion2_2_0(t *testing.T) {
 				PlanOnly: true,
 			},
 			{
-				ProtoV5ProviderFactories: protoV5ProviderFactories(),
+				ProtoV6ProviderFactories: protoV6ProviderFactories(),
 				Config: fmt.Sprintf(`
 							data "http" "http_test" {
 								url = "%s"
@@ -337,7 +337,7 @@ func TestDataSource_Provisioner(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		ExternalProviders: map[string]resource.ExternalProvider{
 			"null": {
 				VersionConstraint: "3.1.1",
@@ -386,7 +386,7 @@ func TestDataSource_POST_200(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -415,7 +415,7 @@ func TestDataSource_HEAD_204(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -441,7 +441,7 @@ func TestDataSource_UnsupportedMethod(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -462,7 +462,7 @@ func TestDataSource_WithCACertificate(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -505,7 +505,7 @@ func TestDataSource_WithClientCert(t *testing.T) {
 	defer testServer.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				// Note: %q is used to handle backspaces in the filepath on windows (\ becomes \\)
@@ -541,7 +541,7 @@ func TestDataSource_WithCACertificateFalse(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -563,7 +563,7 @@ func TestDataSource_InsecureTrue(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -587,7 +587,7 @@ func TestDataSource_InsecureFalse(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -616,7 +616,7 @@ func TestDataSource_InsecureUnconfigured(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -642,7 +642,7 @@ func TestDataSource_UnsupportedInsecureCaCert(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -678,7 +678,7 @@ func TestDataSource_HostRequestHeaderOverride_200(t *testing.T) {
 	defer testServer.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -726,7 +726,6 @@ func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
 	defer server.Close()
 
 	serverURL, err := url.Parse(server.URL)
-
 	if err != nil {
 		t.Fatalf("error parsing server URL: %s", err)
 	}
@@ -741,7 +740,7 @@ func TestDataSource_HTTPViaProxyWithEnv(t *testing.T) {
 	t.Setenv("HTTPS_PROXY", proxy.URL)
 
 	resource.Test(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 
 		Steps: []resource.TestStep{
 			{
@@ -766,7 +765,7 @@ func TestDataSource_Timeout(t *testing.T) {
 	defer svr.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -784,7 +783,7 @@ func TestDataSource_Retry(t *testing.T) {
 	uid := uuid.New()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -824,7 +823,7 @@ func TestDataSource_MinDelay(t *testing.T) {
 	defer svr.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -853,7 +852,7 @@ func TestDataSource_MaxDelay(t *testing.T) {
 	defer svr.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -879,7 +878,7 @@ func TestDataSource_MaxDelayAtLeastEqualToMinDelay(t *testing.T) {
 	defer svr.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -905,7 +904,6 @@ func TestDataSource_RequestBody(t *testing.T) {
 		w.Header().Set("Content-Type", "text/plain")
 
 		requestBody, err := io.ReadAll(r.Body)
-
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(`Request Body Read Error: ` + err.Error()))
@@ -927,7 +925,7 @@ func TestDataSource_RequestBody(t *testing.T) {
 	defer svr.Close()
 
 	resource.UnitTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -970,7 +968,7 @@ func TestDataSource_ResponseBodyText(t *testing.T) {
 	defer svr.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -998,10 +996,10 @@ func TestDataSource_ResponseBodyBinary(t *testing.T) {
 	defer svr.Close()
 
 	resource.ParallelTest(t, resource.TestCase{
-		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		ProtoV6ProviderFactories: protoV6ProviderFactories(),
 		TerraformVersionChecks: []tfversion.TerraformVersionCheck{
-			//test fails in TF 0.14.x due to quirk in behavior
-			//where a warning results in nothing being written to output.
+			// test fails in TF 0.14.x due to quirk in behavior
+			// where a warning results in nothing being written to output.
 			tfversion.SkipBetween(tfversion.Version0_14_0, tfversion.Version0_15_0),
 		},
 		Steps: []resource.TestStep{
