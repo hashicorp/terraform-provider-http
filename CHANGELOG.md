@@ -1,3 +1,10 @@
+## 3.6.1 (August 11, 2026)
+
+NOTES:
+
+* The StateStore lock request no longer passes the 'Path' or 'Info' fields as we no longer have access to those fields from within the provider ([#602](https://github.com/hashicorp/terraform-provider-http/issues/602))
+* Dependency updates which address upstream CVEs. ([#626](https://github.com/hashicorp/terraform-provider-http/issues/626))
+
 ## 3.6.0 (May 12, 2026)
 
 ENHANCEMENTS:
