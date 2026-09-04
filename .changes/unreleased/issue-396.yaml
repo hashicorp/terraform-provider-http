@@ -1,0 +1,4 @@
+kind: ENHANCEMENTS
+body: 'data-source/http: Add `location_trusted` attribute to forward headers on HTTP redirects'
+custom:
+  Issue: 396
