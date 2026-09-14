@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
@@ -209,11 +210,21 @@ a 5xx-range (except 501) status code is received. For further details see
 
 func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var model modelV0
-	diags := req.Config.Get(ctx, &model)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(req.Config.Get(ctx, &model)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+
+	resp.Diagnostics.Append(doRequest(ctx, &model)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, model)...)
+}
+
+func doRequest(ctx context.Context, model *modelV0) diag.Diagnostics {
+	var diags diag.Diagnostics
 
 	requestURL := model.URL.ValueString()
 	method := model.Method.ValueString()
@@ -227,11 +238,11 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	tr, ok := http.DefaultTransport.(*http.Transport)
 	if !ok {
-		resp.Diagnostics.AddError(
+		diags.AddError(
 			"Error configuring http transport",
 			"Error http: Can't configure http transport.",
 		)
-		return
+		return diags
 	}
 
 	// Prevent issues with multiple data source configurations modifying the shared transport.
@@ -257,11 +268,11 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	if !caCertificate.IsNull() {
 		caCertPool := x509.NewCertPool()
 		if ok := caCertPool.AppendCertsFromPEM([]byte(caCertificate.ValueString())); !ok {
-			resp.Diagnostics.AddError(
+			diags.AddError(
 				"Error configuring TLS client",
 				"Error tls: Can't add the CA certificate to certificate pool. Only PEM encoded certificates are supported.",
 			)
-			return
+			return diags
 		}
 
 		if clonedTr.TLSClientConfig == nil {
@@ -273,11 +284,11 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	if !model.ClientCert.IsNull() && !model.ClientKey.IsNull() {
 		cert, err := tls.X509KeyPair([]byte(model.ClientCert.ValueString()), []byte(model.ClientKey.ValueString()))
 		if err != nil {
-			resp.Diagnostics.AddError(
+			diags.AddError(
 				"error creating x509 key pair",
 				fmt.Sprintf("error creating x509 key pair from provided pem blocks\n\nError: %s", err),
 			)
-			return
+			return diags
 		}
 		clonedTr.TLSClientConfig.Certificates = []tls.Certificate{cert}
 	}
@@ -286,9 +297,9 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	if !model.Retry.IsNull() && !model.Retry.IsUnknown() {
 		diags = model.Retry.As(ctx, &retry, basetypes.ObjectAsOptions{})
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(diags...)
+		if diags.HasError() {
+			return diags
 		}
 	}
 
@@ -314,34 +325,32 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	request, err := retryablehttp.NewRequestWithContext(ctx, method, requestURL, nil)
-
 	if err != nil {
-		resp.Diagnostics.AddError(
+		diags.AddError(
 			"Error creating request",
 			fmt.Sprintf("Error creating request: %s", err),
 		)
-		return
+		return diags
 	}
 
 	if !model.RequestBody.IsNull() {
 		err = request.SetBody(strings.NewReader(model.RequestBody.ValueString()))
-
 		if err != nil {
-			resp.Diagnostics.AddError(
+			diags.AddError(
 				"Error Setting Request Body",
 				"An unexpected error occurred while setting the request body: "+err.Error(),
 			)
 
-			return
+			return diags
 		}
 	}
 
 	for name, value := range requestHeaders.Elements() {
 		var header string
 		diags = tfsdk.ValueAs(ctx, value, &header)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
+		diags.Append(diags...)
+		if diags.HasError() {
+			return diags
 		}
 
 		request.Header.Set(name, header)
@@ -361,34 +370,34 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 					detail = fmt.Sprintf("request exceeded the specified timeout: %s, err: %s", timeout.String(), err)
 				}
 
-				resp.Diagnostics.AddError(
+				diags.AddError(
 					"Error making request",
 					detail,
 				)
-				return
+				return diags
 			}
 		}
 
-		resp.Diagnostics.AddError(
+		diags.AddError(
 			"Error making request",
 			fmt.Sprintf("Error making request: %s", err),
 		)
-		return
+		return diags
 	}
 
 	defer response.Body.Close()
 
 	bytes, err := io.ReadAll(response.Body)
 	if err != nil {
-		resp.Diagnostics.AddError(
+		diags.AddError(
 			"Error reading response body",
 			fmt.Sprintf("Error reading response body: %s", err),
 		)
-		return
+		return diags
 	}
 
 	if !utf8.Valid(bytes) {
-		resp.Diagnostics.AddWarning(
+		diags.AddWarning(
 			"Response body is not recognized as UTF-8",
 			"Terraform may not properly handle the response_body if the contents are binary.",
 		)
@@ -404,9 +413,9 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	respHeadersState, diags := types.MapValueFrom(ctx, types.StringType, responseHeaders)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
+	diags.Append(diags...)
+	if diags.HasError() {
+		return diags
 	}
 
 	model.ID = types.StringValue(requestURL)
@@ -416,8 +425,7 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	model.ResponseBodyBase64 = types.StringValue(responseBodyBase64Std)
 	model.StatusCode = types.Int64Value(int64(response.StatusCode))
 
-	diags = resp.State.Set(ctx, model)
-	resp.Diagnostics.Append(diags...)
+	return diags
 }
 
 type modelV0 struct {
