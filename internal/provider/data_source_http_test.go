@@ -1020,6 +1020,52 @@ func TestDataSource_ResponseBodyBinary(t *testing.T) {
 	})
 }
 
+// TestDataSource_FollowRedirects verifies that the follow_redirects flag controls redirect behavior.
+func TestDataSource_FollowRedirects(t *testing.T) {
+	// Target server returns 200 OK
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	}))
+	defer target.Close()
+
+	// Redirect server sends 302 to target
+	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusFound)
+	}))
+	defer redirect.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+				data "http" "http_test" {
+				  url = %q
+				  follow_redirects = false
+				}
+				`, redirect.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", fmt.Sprintf("%d", http.StatusFound)),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.Location", target.URL),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+				data "http" "http_test" {
+				  url = %q
+				}
+				`, redirect.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", fmt.Sprintf("%d", http.StatusOK)),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "OK"),
+				),
+			},
+		},
+	})
+}
+
 func checkServerAndProxyRequestCount(proxyRequestCount, serverRequestCount *int) resource.TestCheckFunc {
 	return func(_ *terraform.State) error {
 		if *proxyRequestCount != *serverRequestCount {
