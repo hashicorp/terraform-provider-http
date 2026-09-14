@@ -10,6 +10,8 @@ description: |-
   mechanism to authenticate the remote server except for general verification of
   the server certificate's chain of trust. Data retrieved from servers not under
   your control should be treated as untrustworthy.
+  The request will succeed even if the status code is not 2xx-range. You can
+  check for specific status codes in a postcondition.
   By default, there are no retries. Configuring the retry block will result in
   retries if an error is returned by the client (e.g., connection errors) or if
   a 5xx-range (except 501) status code is received. For further details see
@@ -28,6 +30,9 @@ will issue a warning if the result is not UTF-8 encoded.
 mechanism to authenticate the remote server except for general verification of
 the server certificate's chain of trust. Data retrieved from servers not under
 your control should be treated as untrustworthy.
+
+The request will succeed even if the status code is not 2xx-range. You can
+check for specific status codes in a postcondition.
 
 By default, there are no retries. Configuring the retry block will result in
 retries if an error is returned by the client (e.g., connection errors) or if 
