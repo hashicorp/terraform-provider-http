@@ -201,6 +201,15 @@ a 5xx-range (except 501) status code is received. For further details see
 							int64validator.AtLeastSumOf(path.MatchRelative().AtParent().AtName("min_delay_ms")),
 						},
 					},
+					"max_http_status": schema.Int64Attribute{
+						Description: "The maximum HTTP status code to retry on. " +
+							"For example, if set to 499, any status code between 400 and 499 will trigger a retry. " +
+							"Setting this to a value less than 500 extends the default 5xx retry behavior to include 4xx responses.",
+						Optional: true,
+						Validators: []validator.Int64{
+							int64validator.Between(400, 599),
+						},
+					},
 				},
 			},
 		},
@@ -304,6 +313,34 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	retryClient.Logger = levelledLogger{ctx}
 	retryClient.RetryMax = int(retry.Attempts.ValueInt64())
+
+	if !retry.MaxHTTPStatus.IsNull() && !retry.MaxHTTPStatus.IsUnknown() {
+		maxStatus := int(retry.MaxHTTPStatus.ValueInt64())
+		retryClient.CheckRetry = func(ctx context.Context, resp *http.Response, err error) (bool, error) {
+			if ctx.Err() != nil {
+				return false, ctx.Err()
+			}
+
+			if err != nil {
+				// The error is likely recoverable so retry.
+				return true, nil //nolint:nilerr // matches retryablehttp.DefaultRetryPolicy behavior
+			}
+
+			if resp.StatusCode == http.StatusTooManyRequests {
+				return true, nil
+			}
+
+			if resp.StatusCode >= 500 && resp.StatusCode != http.StatusNotImplemented {
+				return true, nil
+			}
+
+			if resp.StatusCode >= 400 && resp.StatusCode <= maxStatus {
+				return true, nil
+			}
+
+			return false, nil
+		}
+	}
 
 	if !retry.MinDelay.IsNull() && !retry.MinDelay.IsUnknown() && retry.MinDelay.ValueInt64() >= 0 {
 		retryClient.RetryWaitMin = time.Duration(retry.MinDelay.ValueInt64()) * time.Millisecond
@@ -440,9 +477,10 @@ type modelV0 struct {
 }
 
 type retryModel struct {
-	Attempts types.Int64 `tfsdk:"attempts"`
-	MinDelay types.Int64 `tfsdk:"min_delay_ms"`
-	MaxDelay types.Int64 `tfsdk:"max_delay_ms"`
+	Attempts      types.Int64 `tfsdk:"attempts"`
+	MinDelay      types.Int64 `tfsdk:"min_delay_ms"`
+	MaxDelay      types.Int64 `tfsdk:"max_delay_ms"`
+	MaxHTTPStatus types.Int64 `tfsdk:"max_http_status"`
 }
 
 var _ retryablehttp.LeveledLogger = levelledLogger{}
