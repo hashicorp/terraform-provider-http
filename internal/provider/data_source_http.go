@@ -98,6 +98,23 @@ a 5xx-range (except 501) status code is received. For further details see
 				Optional:    true,
 			},
 
+			"username": schema.StringAttribute{
+				Description: "Username to use for HTTP Basic Authentication.",
+				Optional:    true,
+				Validators: []validator.String{
+					stringvalidator.AlsoRequires(path.MatchRoot("password")),
+				},
+			},
+
+			"password": schema.StringAttribute{
+				Description: "Password to use for HTTP Basic Authentication.",
+				Optional:    true,
+				Sensitive:   true,
+				Validators: []validator.String{
+					stringvalidator.AlsoRequires(path.MatchRoot("username")),
+				},
+			},
+
 			"request_body": schema.StringAttribute{
 				Description: "The request body as a string.",
 				Optional:    true,
@@ -350,6 +367,11 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		}
 	}
 
+	if !model.Username.IsNull() && !model.Password.IsNull() {
+		auth := base64.StdEncoding.EncodeToString([]byte(model.Username.ValueString() + ":" + model.Password.ValueString()))
+		request.Header.Set("Authorization", "Basic "+auth)
+	}
+
 	response, err := retryClient.Do(request)
 	if err != nil {
 		target := &url.Error{}
@@ -433,6 +455,8 @@ type modelV0 struct {
 	ClientCert         types.String `tfsdk:"client_cert_pem"`
 	ClientKey          types.String `tfsdk:"client_key_pem"`
 	Insecure           types.Bool   `tfsdk:"insecure"`
+	Username           types.String `tfsdk:"username"`
+	Password           types.String `tfsdk:"password"`
 	ResponseBody       types.String `tfsdk:"response_body"`
 	Body               types.String `tfsdk:"body"`
 	ResponseBodyBase64 types.String `tfsdk:"response_body_base64"`
