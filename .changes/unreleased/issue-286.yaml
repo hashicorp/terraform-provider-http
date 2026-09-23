@@ -1,0 +1,4 @@
+kind: BUG FIXES
+body: 'data-source/http: Downgrade UTF-8 warning to debug log to prevent noise when using `response_body_base64`'
+custom:
+  Issue: 286
