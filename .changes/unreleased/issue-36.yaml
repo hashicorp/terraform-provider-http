@@ -1,0 +1,4 @@
+kind: ENHANCEMENTS
+body: 'data-source/http: Adds `request_body_file` and `request_body_is_base64` attributes for file-based and binary request bodies'
+custom:
+  Issue: 36
