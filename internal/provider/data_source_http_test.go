@@ -1020,6 +1020,49 @@ func TestDataSource_ResponseBodyBinary(t *testing.T) {
 	})
 }
 
+func TestDataSource_LocationTrusted_HeaderForwarded(t *testing.T) {
+	var authHeader string
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "text/plain")
+		_, err := w.Write([]byte("ok"))
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	defer testServer.Close()
+
+	redirectServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, testServer.URL, http.StatusFound)
+	}))
+	defer redirectServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+								location_trusted = true
+								request_headers = {
+									Authorization = "Bearer test-token"
+								}
+							}`, redirectServer.URL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+					func(_ *terraform.State) error {
+						if authHeader != "Bearer test-token" {
+							return fmt.Errorf("expected Authorization header to be forwarded, got: %s", authHeader)
+						}
+						return nil
+					},
+				),
+			},
+		},
+	})
+}
+
 func checkServerAndProxyRequestCount(proxyRequestCount, serverRequestCount *int) resource.TestCheckFunc {
 	return func(_ *terraform.State) error {
 		if *proxyRequestCount != *serverRequestCount {
