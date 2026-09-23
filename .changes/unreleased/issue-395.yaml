@@ -1,0 +1,4 @@
+kind: ENHANCEMENTS
+body: 'data-source/http: Log request and response details when `TF_LOG=debug` is set'
+custom:
+  Issue: 395

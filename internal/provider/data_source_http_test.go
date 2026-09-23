@@ -1020,6 +1020,39 @@ func TestDataSource_ResponseBodyBinary(t *testing.T) {
 	})
 }
 
+func TestDataSource_RequestResponseLogging(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("X-Custom", "test-value")
+		w.WriteHeader(http.StatusOK)
+		_, err := w.Write([]byte("logged"))
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url = "%s"
+								request_headers = {
+									"X-Test" = "request-header"
+								}
+							}`, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "logged"),
+					resource.TestCheckResourceAttr("data.http.http_test", "response_headers.X-Custom", "test-value"),
+				),
+			},
+		},
+	})
+}
+
 func checkServerAndProxyRequestCount(proxyRequestCount, serverRequestCount *int) resource.TestCheckFunc {
 	return func(_ *terraform.State) error {
 		if *proxyRequestCount != *serverRequestCount {
