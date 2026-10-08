@@ -151,6 +151,7 @@ resource "null_resource" "example" {
 - `ca_cert_pem` (String) Certificate Authority (CA) in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.
 - `client_cert_pem` (String) Client certificate in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.
 - `client_key_pem` (String) Client key in [PEM (RFC 1421)](https://datatracker.ietf.org/doc/html/rfc1421) format.
+- `follow_redirects` (Boolean) If false, do not follow HTTP redirects. Defaults to true.
 - `insecure` (Boolean) Disables verification of the server's certificate chain and hostname. Defaults to `false`
 - `method` (String) The HTTP Method for the request. Allowed methods are a subset of methods defined in [RFC7231](https://datatracker.ietf.org/doc/html/rfc7231#section-4.3) namely, `GET`, `HEAD`, and `POST`. `POST` support is only intended for read-only URLs, such as submitting a search.
 - `request_body` (String) The request body as a string.
