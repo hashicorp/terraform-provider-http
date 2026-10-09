@@ -37,7 +37,9 @@ func NewHttpDataSource() datasource.DataSource {
 	return &httpDataSource{}
 }
 
-type httpDataSource struct{}
+type httpDataSource struct {
+	provider *httpProvider
+}
 
 func (d *httpDataSource) Metadata(_ context.Context, _ datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	// This data source name unconventionally is equal to the provider name,
@@ -45,6 +47,10 @@ func (d *httpDataSource) Metadata(_ context.Context, _ datasource.MetadataReques
 	// adopted data source name should only be done with strong consideration
 	// to the practitioner burden of updating it everywhere.
 	resp.TypeName = "http"
+}
+
+func (d *httpDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	d.provider, resp.Diagnostics = toProvider(req.ProviderData)
 }
 
 func (d *httpDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
@@ -347,6 +353,24 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		request.Header.Set(name, header)
 		if strings.ToLower(name) == "host" {
 			request.Host = header
+		}
+	}
+
+	parsedRequestURL, err := url.Parse(requestURL)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error parsing URL",
+			"An unexpected error occurred while parsing the request URL: "+err.Error(),
+		)
+		return
+	}
+
+	if d.provider.Hostname == parsedRequestURL.Hostname() {
+		for name, header := range d.provider.RequestHeaders {
+			request.Header.Set(name, header)
+			if strings.ToLower(name) == "host" {
+				request.Host = header
+			}
 		}
 	}
 

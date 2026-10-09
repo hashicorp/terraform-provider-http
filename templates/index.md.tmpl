@@ -9,7 +9,13 @@ description: |-
 The HTTP provider is a utility provider for interacting with generic HTTP
 servers as part of a Terraform configuration.
 
-This provider requires no configuration. For information on the resources
-it provides, see the navigation bar.
+## Example Usage
 
-{{- /* No schema in this provider, so no need for this: .SchemaMarkdown | trimspace */ -}}
+This provider requires no configuration, but accepts an optional `host`
+configuration.
+
+### Providing host-specific configuration at the provider level
+
+{{ tffile "examples/provider/provider_with_host.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
