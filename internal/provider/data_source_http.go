@@ -300,6 +300,10 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	if model.RequestTimeout.ValueInt64() > 0 {
 		timeout = time.Duration(model.RequestTimeout.ValueInt64()) * time.Millisecond
 		retryClient.HTTPClient.Timeout = timeout
+
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout)
+		defer cancel()
 	}
 
 	retryClient.Logger = levelledLogger{ctx}
@@ -367,6 +371,20 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 				)
 				return
 			}
+		}
+
+		if errors.Is(err, context.DeadlineExceeded) {
+			detail := fmt.Sprintf("timeout error: %s", err)
+
+			if timeout > 0 {
+				detail = fmt.Sprintf("request exceeded the specified timeout: %s, err: %s", timeout.String(), err)
+			}
+
+			resp.Diagnostics.AddError(
+				"Error making request",
+				detail,
+			)
+			return
 		}
 
 		resp.Diagnostics.AddError(
