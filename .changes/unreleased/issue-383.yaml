@@ -1,0 +1,4 @@
+kind: ENHANCEMENTS
+body: 'data-source/http: Add `response_is_sensitive` and `sensitive_response_body` attributes for marking response as sensitive'
+custom:
+  Issue: 383
