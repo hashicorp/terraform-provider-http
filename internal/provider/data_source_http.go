@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -101,6 +102,15 @@ a 5xx-range (except 501) status code is received. For further details see
 			"request_body": schema.StringAttribute{
 				Description: "The request body as a string.",
 				Optional:    true,
+			},
+
+			"protocol_version": schema.StringAttribute{
+				Description: "The IP protocol version to use for the request. " +
+					"Valid values are `4` and `6`. Defaults to a system-determined behavior.",
+				Optional: true,
+				Validators: []validator.String{
+					stringvalidator.OneOf([]string{"4", "6"}...),
+				},
 			},
 
 			"request_timeout_ms": schema.Int64Attribute{
@@ -240,6 +250,23 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	// Prevent issues with tests caching the proxy configuration.
 	clonedTr.Proxy = func(req *http.Request) (*url.URL, error) {
 		return httpproxy.FromEnvironment().ProxyFunc()(req.URL)
+	}
+
+	if !model.ProtocolVersion.IsNull() {
+		network := "tcp"
+		switch model.ProtocolVersion.ValueString() {
+		case "4":
+			network = "tcp4"
+		case "6":
+			network = "tcp6"
+		}
+		dialer := &net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}
+		clonedTr.DialContext = func(ctx context.Context, _, addr string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, addr)
+		}
 	}
 
 	if clonedTr.TLSClientConfig == nil {
@@ -433,6 +460,7 @@ type modelV0 struct {
 	ClientCert         types.String `tfsdk:"client_cert_pem"`
 	ClientKey          types.String `tfsdk:"client_key_pem"`
 	Insecure           types.Bool   `tfsdk:"insecure"`
+	ProtocolVersion    types.String `tfsdk:"protocol_version"`
 	ResponseBody       types.String `tfsdk:"response_body"`
 	Body               types.String `tfsdk:"body"`
 	ResponseBodyBase64 types.String `tfsdk:"response_body_base64"`
