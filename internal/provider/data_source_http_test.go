@@ -149,6 +149,89 @@ func TestDataSource_withAuthorizationRequestHeader_200(t *testing.T) {
 	})
 }
 
+func TestDataSource_withAuthorizationRequestHeaderFromProvider_200(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "Zm9vOmJhcg==" {
+			w.Header().Set("Content-Type", "text/plain")
+			_, err := w.Write([]byte("1.0.0"))
+			if err != nil {
+				t.Errorf("error writing body: %s", err)
+			}
+		} else {
+			w.WriteHeader(http.StatusForbidden)
+		}
+	}))
+	defer testServer.Close()
+
+	testServerURL, _ := url.Parse(testServer.URL)
+	testServerHostname := testServerURL.Hostname()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							provider "http" {
+								host {
+									name = "%s"
+									request_headers = {
+										"Authorization" = "Zm9vOmJhcg=="
+									}
+								}
+							}
+							data "http" "http_test" {
+								url = "%s"
+							}`, testServerHostname, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "1.0.0"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+					resource.TestCheckNoResourceAttr("data.http.http_test", "request_headers"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_withDifferentHostnameFromProvider_403(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "Zm9vOmJhcg==" {
+			w.Header().Set("Content-Type", "text/plain")
+			_, err := w.Write([]byte("1.0.0"))
+			if err != nil {
+				t.Errorf("error writing body: %s", err)
+			}
+		} else {
+			w.WriteHeader(http.StatusForbidden)
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							provider "http" {
+								host {
+									name = "host.com"
+									request_headers = {
+										"Authorization" = "Zm9vOmJhcg=="
+									}
+								}
+							}
+							data "http" "http_test" {
+								url = "%s"
+							}`, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", ""),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "403"),
+					resource.TestCheckNoResourceAttr("data.http.http_test", "request_headers"),
+				),
+			},
+		},
+	})
+}
+
 func TestDataSource_withAuthorizationRequestHeader_403(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Zm9vOmJhcg==" {
