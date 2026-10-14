@@ -6,6 +6,7 @@ package provider
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -13,6 +14,8 @@ import (
 	"net/http/httptest"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -1014,6 +1017,140 @@ func TestDataSource_ResponseBodyBinary(t *testing.T) {
 					// Note the replacement character in the string representation in `response_body`.
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "GIF89a\x01\x00\x01\x00�\x00\x00\x00\x00\x00\x00\x00\x00!�\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"),
 					resource.TestCheckResourceAttr("data.http.http_test", "response_body_base64", "R0lGODlhAQABAIAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_RequestBodyFile(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "body.txt")
+	err := os.WriteFile(tmpFile, []byte("test file body"), 0644)
+	if err != nil {
+		t.Fatalf("error writing temp file: %s", err)
+	}
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+
+		requestBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if string(requestBody) == "test file body" {
+			_, _ = w.Write([]byte("ok"))
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer svr.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					data "http" "test" {
+						url               = "%s"
+						method            = "POST"
+						request_body_file = %q
+					}`, svr.URL, tmpFile),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.test", "status_code", "200"),
+					resource.TestCheckResourceAttr("data.http.test", "response_body", "ok"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_RequestBodyBase64(t *testing.T) {
+	t.Parallel()
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+
+		requestBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if string(requestBody) == "hello" {
+			_, _ = w.Write([]byte("decoded"))
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer svr.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					data "http" "test" {
+						url                    = "%s"
+						method                 = "POST"
+						request_body           = base64encode("hello")
+						request_body_is_base64 = true
+					}`, svr.URL),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.test", "status_code", "200"),
+					resource.TestCheckResourceAttr("data.http.test", "response_body", "decoded"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_RequestBodyBase64FromFile(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	encoded := base64.StdEncoding.EncodeToString([]byte("hello from file"))
+	tmpFile := filepath.Join(tmpDir, "body.b64")
+	err := os.WriteFile(tmpFile, []byte(encoded), 0644)
+	if err != nil {
+		t.Fatalf("error writing temp file: %s", err)
+	}
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+
+		requestBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if string(requestBody) == "hello from file" {
+			_, _ = w.Write([]byte("file decoded ok"))
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer svr.Close()
+
+	resource.UnitTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+					data "http" "test" {
+						url                    = "%s"
+						method                 = "POST"
+						request_body_file      = %q
+						request_body_is_base64 = true
+					}`, svr.URL, tmpFile),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.test", "status_code", "200"),
+					resource.TestCheckResourceAttr("data.http.test", "response_body", "file decoded ok"),
 				),
 			},
 		},

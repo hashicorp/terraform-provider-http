@@ -4,6 +4,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -13,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -101,6 +103,17 @@ a 5xx-range (except 501) status code is received. For further details see
 			"request_body": schema.StringAttribute{
 				Description: "The request body as a string.",
 				Optional:    true,
+			},
+
+			"request_body_file": schema.StringAttribute{
+				Description: "The path to a file to use as the request body.",
+				Optional:    true,
+			},
+
+			"request_body_is_base64": schema.BoolAttribute{
+				Description: "Set to true if the `request_body` or `request_body_file` content is base64-encoded. " +
+					"The provider will decode it before sending.",
+				Optional: true,
 			},
 
 			"request_timeout_ms": schema.Int64Attribute{
@@ -323,9 +336,45 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	if !model.RequestBody.IsNull() {
-		err = request.SetBody(strings.NewReader(model.RequestBody.ValueString()))
+	var bodyReader io.Reader
 
+	if !model.RequestBodyFile.IsNull() {
+		data, err := os.ReadFile(model.RequestBodyFile.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error Reading Request Body File",
+				fmt.Sprintf("Error reading request body file: %s", err),
+			)
+			return
+		}
+		bodyReader = bytes.NewReader(data)
+	} else if !model.RequestBody.IsNull() {
+		bodyReader = strings.NewReader(model.RequestBody.ValueString())
+	}
+
+	if bodyReader != nil {
+		if !model.RequestBodyIsBase64.IsNull() && model.RequestBodyIsBase64.ValueBool() {
+			data, err := io.ReadAll(bodyReader)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Error Reading Request Body",
+					fmt.Sprintf("Error reading request body: %s", err),
+				)
+				return
+			}
+			decoded := make([]byte, base64.StdEncoding.DecodedLen(len(data)))
+			n, err := base64.StdEncoding.Decode(decoded, data)
+			if err != nil {
+				resp.Diagnostics.AddError(
+					"Error Decoding Base64 Request Body",
+					fmt.Sprintf("Error decoding base64 request body: %s", err),
+				)
+				return
+			}
+			bodyReader = bytes.NewReader(decoded[:n])
+		}
+
+		err = request.SetBody(io.NopCloser(bodyReader))
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error Setting Request Body",
@@ -421,22 +470,24 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 }
 
 type modelV0 struct {
-	ID                 types.String `tfsdk:"id"`
-	URL                types.String `tfsdk:"url"`
-	Method             types.String `tfsdk:"method"`
-	RequestHeaders     types.Map    `tfsdk:"request_headers"`
-	RequestBody        types.String `tfsdk:"request_body"`
-	RequestTimeout     types.Int64  `tfsdk:"request_timeout_ms"`
-	Retry              types.Object `tfsdk:"retry"`
-	ResponseHeaders    types.Map    `tfsdk:"response_headers"`
-	CaCertificate      types.String `tfsdk:"ca_cert_pem"`
-	ClientCert         types.String `tfsdk:"client_cert_pem"`
-	ClientKey          types.String `tfsdk:"client_key_pem"`
-	Insecure           types.Bool   `tfsdk:"insecure"`
-	ResponseBody       types.String `tfsdk:"response_body"`
-	Body               types.String `tfsdk:"body"`
-	ResponseBodyBase64 types.String `tfsdk:"response_body_base64"`
-	StatusCode         types.Int64  `tfsdk:"status_code"`
+	ID                  types.String `tfsdk:"id"`
+	URL                 types.String `tfsdk:"url"`
+	Method              types.String `tfsdk:"method"`
+	RequestHeaders      types.Map    `tfsdk:"request_headers"`
+	RequestBody         types.String `tfsdk:"request_body"`
+	RequestBodyFile     types.String `tfsdk:"request_body_file"`
+	RequestBodyIsBase64 types.Bool   `tfsdk:"request_body_is_base64"`
+	RequestTimeout      types.Int64  `tfsdk:"request_timeout_ms"`
+	Retry               types.Object `tfsdk:"retry"`
+	ResponseHeaders     types.Map    `tfsdk:"response_headers"`
+	CaCertificate       types.String `tfsdk:"ca_cert_pem"`
+	ClientCert          types.String `tfsdk:"client_cert_pem"`
+	ClientKey           types.String `tfsdk:"client_key_pem"`
+	Insecure            types.Bool   `tfsdk:"insecure"`
+	ResponseBody        types.String `tfsdk:"response_body"`
+	Body                types.String `tfsdk:"body"`
+	ResponseBodyBase64  types.String `tfsdk:"response_body_base64"`
+	StatusCode          types.Int64  `tfsdk:"status_code"`
 }
 
 type retryModel struct {
