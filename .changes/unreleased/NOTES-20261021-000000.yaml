@@ -1,0 +1,5 @@
+kind: NOTES
+body: Upgrade the Go toolchain to 1.26.10 to mitigate the eMudhra certificate authority vulnerability (CVE-2026-111943).
+time: 2026-10-21T00:00:00Z
+custom:
+    Issue: "654"
