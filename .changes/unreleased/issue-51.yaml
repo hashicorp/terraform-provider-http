@@ -1,0 +1,4 @@
+kind: ENHANCEMENTS
+body: 'data-source/http: Adds `username` and `password` attributes for HTTP Basic Authentication'
+custom:
+  Issue: 51
