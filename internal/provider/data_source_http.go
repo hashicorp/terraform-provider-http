@@ -160,6 +160,12 @@ a 5xx-range (except 501) status code is received. For further details see
 				Optional:    true,
 			},
 
+			"location_trusted": schema.BoolAttribute{
+				Description: "Set to `true` to forward all request headers (including Authorization) on redirects. " +
+					"Use with caution: this may expose sensitive headers to untrusted servers. Defaults to `false`.",
+				Optional: true,
+			},
+
 			"response_headers": schema.MapAttribute{
 				Description: `A map of response header field names and values.` +
 					` Duplicate headers are concatenated according to [RFC2616](https://www.w3.org/Protocols/rfc2616/rfc2616-sec4.html#sec4.2).`,
@@ -294,6 +300,19 @@ func (d *httpDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = clonedTr
+
+	if !model.LocationTrusted.IsNull() && model.LocationTrusted.ValueBool() {
+		retryClient.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return http.ErrUseLastResponse
+			}
+			// Forward all headers from the original request on redirect
+			for k, v := range via[0].Header {
+				req.Header[k] = v
+			}
+			return nil
+		}
+	}
 
 	var timeout time.Duration
 
@@ -433,6 +452,7 @@ type modelV0 struct {
 	ClientCert         types.String `tfsdk:"client_cert_pem"`
 	ClientKey          types.String `tfsdk:"client_key_pem"`
 	Insecure           types.Bool   `tfsdk:"insecure"`
+	LocationTrusted    types.Bool   `tfsdk:"location_trusted"`
 	ResponseBody       types.String `tfsdk:"response_body"`
 	Body               types.String `tfsdk:"body"`
 	ResponseBodyBase64 types.String `tfsdk:"response_body_base64"`
