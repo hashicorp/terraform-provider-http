@@ -1,0 +1,4 @@
+kind: ENHANCEMENTS
+body: 'data-source/http: Add `retry.max_http_status` attribute to enable retry on 4xx status codes'
+custom:
+  Issue: 584
