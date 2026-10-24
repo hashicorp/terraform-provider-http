@@ -700,6 +700,54 @@ func TestDataSource_HostRequestHeaderOverride_200(t *testing.T) {
 	})
 }
 
+func TestDataSource_ProtocolVersion4(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, err := w.Write([]byte("ipv4-test"))
+		if err != nil {
+			t.Errorf("error writing body: %s", err)
+		}
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url              = "%s"
+								protocol_version = "4"
+							}`, testServer.URL),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.http.http_test", "response_body", "ipv4-test"),
+					resource.TestCheckResourceAttr("data.http.http_test", "status_code", "200"),
+				),
+			},
+		},
+	})
+}
+
+func TestDataSource_InvalidProtocolVersion(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	}))
+	defer testServer.Close()
+
+	resource.ParallelTest(t, resource.TestCase{
+		ProtoV5ProviderFactories: protoV5ProviderFactories(),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+							data "http" "http_test" {
+								url              = "%s"
+								protocol_version = "3"
+							}`, testServer.URL),
+				ExpectError: regexp.MustCompile(`value must be one of: \["4" "6"\]`),
+			},
+		},
+	})
+}
+
 // testProxiedURL is a hardcoded URL used in acceptance testing where it is
 // expected that a locally started HTTP proxy will handle the request.
 //
